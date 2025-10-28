@@ -1,6 +1,12 @@
-import { Send, Paperclip, Mic, Image as ImageIcon, X } from "lucide-react";
+import { Send, Paperclip, Mic, Image as ImageIcon, X, MoreVertical, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useState, useRef, KeyboardEvent, useEffect } from "react";
 
 interface ChatInputProps {
@@ -126,62 +132,64 @@ export function ChatInput({
         )}
 
         <div className="flex gap-2">
-          <div className="flex gap-2">
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleImageSelect}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => imageInputRef.current?.click()}
-              disabled={disabled}
-              data-testid="button-upload-image"
-            >
-              <ImageIcon className="h-5 w-5" />
-            </Button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleImageSelect}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              data-testid="button-upload-file"
-            >
-              <Paperclip className="h-5 w-5" />
-            </Button>
-
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onVoiceClick}
-              disabled={disabled}
-              data-testid="button-voice-input"
-            >
-              <Mic className="h-5 w-5" />
-            </Button>
-
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={onImageGenClick}
-              disabled={disabled}
-              data-testid="button-generate-image"
-            >
-              <ImageIcon className="h-5 w-5 fill-current" />
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                disabled={disabled}
+                data-testid="button-attachment-menu"
+              >
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem
+                onClick={() => imageInputRef.current?.click()}
+                data-testid="menu-upload-image"
+              >
+                <ImageIcon className="mr-2 h-4 w-4" />
+                <span>Загрузить изображение</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => fileInputRef.current?.click()}
+                data-testid="menu-upload-file"
+              >
+                <Paperclip className="mr-2 h-4 w-4" />
+                <span>Приложить файл</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onVoiceClick}
+                data-testid="menu-voice-input"
+              >
+                <Mic className="mr-2 h-4 w-4" />
+                <span>Голосовой ввод</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onImageGenClick}
+                data-testid="menu-generate-image"
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                <span>Создать изображение</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="relative flex-1">
             <Textarea
