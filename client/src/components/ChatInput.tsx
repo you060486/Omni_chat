@@ -33,7 +33,7 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && e.ctrlKey) {
       e.preventDefault();
       handleSend();
     }
@@ -174,7 +174,7 @@ export function ChatInput({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Введите сообщение... (Shift+Enter для новой строки)"
+              placeholder="Введите сообщение... (Ctrl+Enter для отправки)"
               className="min-h-[3rem] max-h-32 resize-none pr-12"
               disabled={disabled}
               data-testid="input-message"
@@ -192,7 +192,7 @@ export function ChatInput({
         </div>
 
         <p className="mt-2 text-center text-xs text-muted-foreground">
-          Enter для отправки • Shift+Enter для новой строки
+          Ctrl+Enter для отправки
         </p>
       </div>
     </div>
