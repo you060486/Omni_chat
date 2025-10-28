@@ -1,7 +1,7 @@
 import { Send, Paperclip, Mic, Image as ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useState, useRef, KeyboardEvent } from "react";
+import { useState, useRef, KeyboardEvent, useEffect } from "react";
 
 interface ChatInputProps {
   onSendMessage: (text: string, files?: File[], images?: string[]) => void;
@@ -23,12 +23,27 @@ export function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      const scrollHeight = textarea.scrollHeight;
+      const maxHeight = window.innerWidth < 768 
+        ? window.innerHeight * 0.7 
+        : window.innerHeight * 0.5;
+      textarea.style.height = Math.min(scrollHeight, maxHeight) + "px";
+    }
+  }, [message]);
+
   const handleSend = () => {
     if (message.trim() || attachedFiles.length > 0 || attachedImages.length > 0) {
       onSendMessage(message, attachedFiles, attachedImages);
       setMessage("");
       setAttachedFiles([]);
       setAttachedImages([]);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
     }
   };
 
@@ -175,7 +190,8 @@ export function ChatInput({
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Введите сообщение... (Ctrl+Enter для отправки)"
-              className="min-h-[3rem] max-h-32 resize-none pr-12"
+              className="min-h-[3rem] resize-none pr-12 overflow-hidden"
+              style={{ maxHeight: typeof window !== 'undefined' && window.innerWidth < 768 ? '70vh' : '50vh' }}
               disabled={disabled}
               data-testid="input-message"
             />
