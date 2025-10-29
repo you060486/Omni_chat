@@ -16,6 +16,7 @@ interface AppSidebarProps {
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation?: (id: string, newTitle: string) => void;
 }
 
 export function AppSidebar({
@@ -24,6 +25,7 @@ export function AppSidebar({
   onNewChat,
   onSelectConversation,
   onDeleteConversation,
+  onRenameConversation,
 }: AppSidebarProps) {
   return (
     <Sidebar>
@@ -45,6 +47,7 @@ export function AppSidebar({
               selectedId={selectedConversation}
               onSelect={onSelectConversation}
               onDelete={onDeleteConversation}
+              onRename={onRenameConversation}
             />
           </SidebarGroupContent>
         </SidebarGroup>

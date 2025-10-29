@@ -78,6 +78,16 @@ function HomePage() {
     }
   };
 
+  const handleRenameConversation = (id: string, newTitle: string) => {
+    try {
+      storage.updateConversation(id, { title: newTitle });
+      const convs = storage.getConversations();
+      setConversations(convs);
+    } catch (error) {
+      console.error("Error renaming conversation:", error);
+    }
+  };
+
   const handleConversationUpdate = () => {
     // Reload conversations from localStorage when messages are added
     const convs = storage.getConversations();
@@ -103,6 +113,7 @@ function HomePage() {
           onNewChat={handleNewChatClick}
           onSelectConversation={setSelectedConvId}
           onDeleteConversation={handleDeleteConversation}
+          onRenameConversation={handleRenameConversation}
         />
         <div className="flex-1">
           <Chat
