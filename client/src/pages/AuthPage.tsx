@@ -31,9 +31,9 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen items-center justify-center">
       {/* Left side - Auth forms */}
-      <div className="flex w-full flex-col justify-center px-8 lg:w-1/2 lg:px-16">
+      <div className="flex w-full flex-col px-8 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 text-center">
             <Bot className="mx-auto mb-4 h-12 w-12 text-primary" />
