@@ -20,17 +20,17 @@ const models: { value: AIModel; label: string; description: string }[] = [
   {
     value: "gpt-5",
     label: "GPT-5",
-    description: "Самая продвинутая модель OpenAI (GPT-4o)",
+    description: "Самая умная модель с конфигурируемым рассуждением",
   },
   {
     value: "gpt-5-mini",
     label: "GPT-5 Mini",
-    description: "Быстрая и эффективная версия (GPT-4o-mini)",
+    description: "Быстрая версия с балансом производительности и стоимости",
   },
   {
     value: "o3-mini",
     label: "o3-mini",
-    description: "Модель с продвинутым рассуждением (GPT-4o-mini)",
+    description: "Специализация на STEM: наука, математика, программирование",
   },
   {
     value: "gemini",

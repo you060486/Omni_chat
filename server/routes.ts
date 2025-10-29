@@ -113,9 +113,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // OpenAI models (gpt-5, gpt-5-mini, o3-mini)
           const modelMap: Record<string, string> = {
-            "gpt-5": "gpt-4o",
-            "gpt-5-mini": "gpt-4o-mini",
-            "o3-mini": "gpt-4o-mini",
+            "gpt-5": "gpt-5-2025-08-07",
+            "gpt-5-mini": "gpt-5-mini-2025-08-07",
+            "o3-mini": "o3-mini-2025-01-31",
           };
 
           // Convert message history to OpenAI format
@@ -141,7 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           openaiMessages.push({ role: "user", content: currentContent });
 
           const stream = await openai.chat.completions.create({
-            model: modelMap[model] || "gpt-4o",
+            model: modelMap[model] || "gpt-5-2025-08-07",
             messages: openaiMessages,
             stream: true,
           });
