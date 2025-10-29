@@ -45,13 +45,10 @@ export function SavePresetDialog({
 
     setIsSaving(true);
     try {
-      await apiRequest("/api/presets/user", {
-        method: "POST",
-        body: {
-          name: name.trim(),
-          description: description.trim() || null,
-          modelSettings,
-        },
+      await apiRequest("POST", "/api/presets/user", {
+        name: name.trim(),
+        description: description.trim() || null,
+        modelSettings,
       });
 
       toast({

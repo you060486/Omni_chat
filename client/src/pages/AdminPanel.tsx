@@ -4,6 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { PresetPrompt, InsertPresetPrompt } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Pencil, Trash2, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Sparkles, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +35,7 @@ type DialogMode = "create" | "edit" | null;
 
 export default function AdminPanel() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"admin" | "pending">("admin");
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [editingPreset, setEditingPreset] = useState<PresetPrompt | null>(null);
   
@@ -49,6 +51,11 @@ export default function AdminPanel() {
 
   const { data: presets, isLoading } = useQuery<PresetPrompt[]>({
     queryKey: ["/api/presets"],
+  });
+
+  const { data: pendingPresets, isLoading: isLoadingPending } = useQuery<PresetPrompt[]>({
+    queryKey: ["/api/presets/pending"],
+    refetchOnMount: true,
   });
 
   const createMutation = useMutation({
@@ -123,6 +130,30 @@ export default function AdminPanel() {
       toast({
         title: "Ошибка",
         description: error.message || "Не удалось удалить готовое решение",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const moderateMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      const adminPassword = prompt("Введите пароль администратора:");
+      if (!adminPassword) throw new Error("Пароль не введен");
+      
+      return apiRequest("PATCH", `/api/presets/${id}/status`, { status, password: adminPassword });
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/presets/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/presets/approved"] });
+      toast({
+        title: "Успешно",
+        description: variables.status === "approved" ? "Промпт одобрен" : "Промпт отклонен",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Ошибка",
+        description: error.message || "Не удалось изменить статус",
         variant: "destructive",
       });
     },
@@ -236,83 +267,174 @@ export default function AdminPanel() {
         </Button>
       </div>
 
-      <div className="grid gap-4">
-        {isLoading ? (
-          <>
-            {[1, 2, 3].map((i) => (
-              <Card key={i}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "admin" | "pending")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="admin" data-testid="tab-admin-presets">
+            Админские промпты
+          </TabsTrigger>
+          <TabsTrigger value="pending" data-testid="tab-pending-presets">
+            На рассмотрении ({pendingPresets?.length || 0})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="admin" className="space-y-4 mt-6">
+          {isLoading ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-2/3" />
+                    <Skeleton className="h-4 w-full mt-2" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </>
+          ) : presets && presets.length > 0 ? (
+            presets.filter(p => p.status === "admin").map((preset) => (
+              <Card key={preset.id} className="hover-elevate" data-testid={`card-preset-${preset.id}`}>
                 <CardHeader>
-                  <Skeleton className="h-6 w-2/3" />
-                  <Skeleton className="h-4 w-full mt-2" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                        <CardTitle>{preset.name}</CardTitle>
+                      </div>
+                      {preset.description && (
+                        <CardDescription className="mt-2">{preset.description}</CardDescription>
+                      )}
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-3">
+                        <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
+                        <span>•</span>
+                        <span>
+                          {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => openEditDialog(preset)}
+                        data-testid={`button-edit-${preset.id}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDelete(preset.id)}
+                        data-testid={`button-delete-${preset.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
+                {preset.modelSettings.systemPrompt && (
+                  <CardContent>
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">Системный промпт:</p>
+                      <p className="text-muted-foreground line-clamp-3">
+                        {preset.modelSettings.systemPrompt}
+                      </p>
+                    </div>
+                  </CardContent>
+                )}
               </Card>
-            ))}
-          </>
-        ) : presets && presets.length > 0 ? (
-          presets.map((preset) => (
-            <Card key={preset.id} className="hover-elevate" data-testid={`card-preset-${preset.id}`}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-primary" />
-                      <CardTitle>{preset.name}</CardTitle>
-                    </div>
-                    {preset.description && (
-                      <CardDescription className="mt-2">{preset.description}</CardDescription>
-                    )}
-                    <div className="flex items-center gap-3 text-sm text-muted-foreground mt-3">
-                      <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
-                      <span>•</span>
-                      <span>
-                        {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => openEditDialog(preset)}
-                      data-testid={`button-edit-${preset.id}`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleDelete(preset.id)}
-                      data-testid={`button-delete-${preset.id}`}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              {preset.modelSettings.systemPrompt && (
-                <CardContent>
-                  <div className="text-sm">
-                    <p className="font-medium mb-1">Системный промпт:</p>
-                    <p className="text-muted-foreground line-clamp-3">
-                      {preset.modelSettings.systemPrompt}
-                    </p>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">Нет готовых решений</p>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Sparkles className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">Нет готовых решений</p>
               <Button className="mt-4" onClick={openCreateDialog}>
                 Создать первое решение
               </Button>
             </CardContent>
           </Card>
         )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="pending" className="space-y-4 mt-6">
+          {isLoadingPending ? (
+            <>
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <Skeleton className="h-6 w-2/3" />
+                    <Skeleton className="h-4 w-full mt-2" />
+                  </CardHeader>
+                </Card>
+              ))}
+            </>
+          ) : pendingPresets && pendingPresets.length > 0 ? (
+            pendingPresets.map((preset) => (
+              <Card key={preset.id} className="hover-elevate" data-testid={`card-pending-preset-${preset.id}`}>
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <CardTitle>{preset.name}</CardTitle>
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                          Ожидает модерации
+                        </span>
+                      </div>
+                      {preset.description && (
+                        <CardDescription className="mt-2">{preset.description}</CardDescription>
+                      )}
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-3">
+                        <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
+                        <span>•</span>
+                        <span>
+                          {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => moderateMutation.mutate({ id: preset.id, status: "approved" })}
+                        disabled={moderateMutation.isPending}
+                        data-testid={`button-approve-${preset.id}`}
+                        className="text-green-600"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => moderateMutation.mutate({ id: preset.id, status: "rejected" })}
+                        disabled={moderateMutation.isPending}
+                        data-testid={`button-reject-${preset.id}`}
+                        className="text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                {preset.modelSettings.systemPrompt && (
+                  <CardContent>
+                    <div className="text-sm">
+                      <p className="font-medium mb-1">Системный промпт:</p>
+                      <p className="text-muted-foreground line-clamp-3">
+                        {preset.modelSettings.systemPrompt}
+                      </p>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">Нет промптов на рассмотрении</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialogMode !== null} onOpenChange={() => closeDialog()}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
