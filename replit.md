@@ -53,6 +53,11 @@
 - **Multer** - обработка загрузки файлов
 - **PDF Parse** - парсинг PDF документов
 
+### Хранилище данных
+- **localStorage** - локальное хранение разговоров в браузере
+- Каждое устройство имеет изолированные данные
+- Нет синхронизации между устройствами
+
 ## Архитектура
 
 ### Структура файлов
@@ -74,13 +79,13 @@ client/
     pages/
       - Chat.tsx                # Главная страница чата
     lib/
-      - api.ts                  # API клиент
+      - api.ts                  # API клиент для AI чата
+      - storage.ts              # localStorage утилиты
       - queryClient.ts          # TanStack Query настройка
     App.tsx                     # Основное приложение
     
 server/
-  - routes.ts                   # API endpoints
-  - storage.ts                  # In-memory хранилище
+  - routes.ts                   # AI chat API endpoints
   - index.ts                    # Express сервер
   
 shared/
@@ -89,24 +94,20 @@ shared/
 
 ### API Endpoints
 
-#### GET /api/conversations
-Получение списка всех разговоров
-
-#### POST /api/conversations
-Создание нового разговора
-```json
-{
-  "model": "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini"
-}
-```
-
-#### DELETE /api/conversations/:id
-Удаление разговора
-
-#### POST /api/conversations/:id/messages
-Отправка сообщения и получение streaming ответа
+#### POST /api/chat
+Отправка сообщения к AI и получение streaming ответа
 - Поддерживает multipart/form-data для файлов
 - Возвращает SSE stream для реал-тайм ответов
+- Принимает: model, messages (история), content, images, files
+
+```json
+{
+  "model": "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini",
+  "messages": [...], // история сообщений
+  "content": [...],  // текущее сообщение
+  "images": [...],   // base64 изображения
+}
+```
 
 #### POST /api/generate-image
 Генерация изображения через Gemini Imagen
@@ -125,6 +126,13 @@ shared/
 - `SESSION_SECRET` - секрет для сессий (уже настроен)
 
 ## Особенности реализации
+
+### Локальное хранилище
+- Все разговоры хранятся в localStorage браузера
+- Каждое устройство имеет свои изолированные данные
+- Нет синхронизации между устройствами
+- При первом запуске предлагается создать чат
+- Невозможно отправить сообщение без активного чата
 
 ### Темная тема по умолчанию
 Приложение автоматически загружается в темной теме с возможностью переключения на светлую.

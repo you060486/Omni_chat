@@ -9,13 +9,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Message, AIModel, Conversation } from "@shared/schema";
 import { Bot, Loader2 } from "lucide-react";
 import { sendMessage } from "@/lib/api";
+import { storage } from "@/lib/storage";
 
 interface ChatProps {
   conversation?: Conversation;
   selectedModel: AIModel;
+  onConversationUpdate: () => void;
 }
 
-export default function Chat({ conversation, selectedModel }: ChatProps) {
+export default function Chat({ conversation, selectedModel, onConversationUpdate }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || []);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageGenOpen, setImageGenOpen] = useState(false);
@@ -62,13 +64,18 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
       timestamp: new Date(),
     };
 
+    // Save user message to localStorage
+    storage.addMessage(conversation.id, userMessage);
     setMessages((prev) => [...prev, userMessage]);
+    onConversationUpdate();
+    
     setIsStreaming(true);
     setStreamingText("");
     streamingTextRef.current = "";
 
     await sendMessage({
-      conversationId: conversation.id,
+      model: selectedModel,
+      messages: [...messages, userMessage],
       content: userContent,
       images,
       files,
@@ -84,7 +91,12 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
           model: selectedModel,
           timestamp: new Date(),
         };
+        
+        // Save AI message to localStorage
+        storage.addMessage(conversation.id, aiMessage);
         setMessages((prev) => [...prev, aiMessage]);
+        onConversationUpdate();
+        
         setStreamingText("");
         streamingTextRef.current = "";
         setIsStreaming(false);
@@ -101,7 +113,11 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
           model: selectedModel,
           timestamp: new Date(),
         };
+        
+        // Save error message to localStorage
+        storage.addMessage(conversation.id, errorMessage);
         setMessages((prev) => [...prev, errorMessage]);
+        onConversationUpdate();
       },
     });
   };
@@ -175,7 +191,7 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
         onSendMessage={handleSendMessage}
         onVoiceClick={() => setVoiceOpen(true)}
         onImageGenClick={() => setImageGenOpen(true)}
-        disabled={isStreaming}
+        disabled={isStreaming || !conversation}
       />
 
       <VoiceInput

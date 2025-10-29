@@ -1,11 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
 import multer from "multer";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { insertMessageSchema, type AIModel } from "@shared/schema";
-import { z } from "zod";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
@@ -19,51 +16,10 @@ const openai = new OpenAI({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Get all conversations
-  app.get("/api/conversations", async (req, res) => {
+  // Chat endpoint - send message and get AI response (with streaming)
+  app.post("/api/chat", upload.array("files"), async (req, res) => {
     try {
-      const conversations = await storage.getConversations();
-      res.json(conversations);
-    } catch (error) {
-      console.error("Error fetching conversations:", error);
-      res.status(500).json({ error: "Failed to fetch conversations" });
-    }
-  });
-
-  // Create new conversation
-  app.post("/api/conversations", async (req, res) => {
-    try {
-      const { model } = req.body as { model: AIModel };
-      const conversation = await storage.createConversation(model);
-      res.json(conversation);
-    } catch (error) {
-      console.error("Error creating conversation:", error);
-      res.status(500).json({ error: "Failed to create conversation" });
-    }
-  });
-
-  // Delete conversation
-  app.delete("/api/conversations/:id", async (req, res) => {
-    try {
-      await storage.deleteConversation(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting conversation:", error);
-      res.status(500).json({ error: "Failed to delete conversation" });
-    }
-  });
-
-  // Send message and get AI response (with streaming)
-  app.post("/api/conversations/:id/messages", upload.array("files"), async (req, res) => {
-    try {
-      const conversationId = req.params.id;
-      const conversation = await storage.getConversation(conversationId);
-      
-      if (!conversation) {
-        return res.status(404).json({ error: "Conversation not found" });
-      }
-
-      const { content, images } = JSON.parse(req.body.data || "{}");
+      const { model, messages: messageHistory, content, images } = JSON.parse(req.body.data || "{}");
       const files = req.files as Express.Multer.File[] || [];
 
       // Process uploaded files
@@ -103,15 +59,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Save user message
-      const userMessage = await storage.addMessage(conversationId, {
-        role: "user",
-        content: processedContent,
-        timestamp: new Date(),
-      });
-
-      // Get conversation history for context
-      const messages = await storage.getMessages(conversationId);
+      // Use message history from client
+      const messages = messageHistory || [];
 
       // Set up SSE for streaming
       res.setHeader("Content-Type", "text/event-stream");
@@ -121,13 +70,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let fullResponse = "";
 
       try {
-        if (conversation.model === "gemini") {
+        if (model === "gemini") {
           // Gemini model
           const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
           
-          // Convert message history to Gemini format
-          const chatHistory = messages.slice(0, -1).map((msg) => {
-            const textContent = msg.content.filter((c) => c.type === "text").map((c: any) => c.text).join("\n");
+          // Convert message history to Gemini format  
+          const chatHistory = messages.map((msg: any) => {
+            const textContent = msg.content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n");
             return {
               role: msg.role === "user" ? "user" : "model",
               parts: [{ text: textContent }],
@@ -170,29 +119,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           // Convert message history to OpenAI format
-          const openaiMessages: any[] = messages.slice(0, -1).map((msg) => {
-            const content: any[] = msg.content.map((c) => {
+          const openaiMessages: any[] = messages.map((msg: any) => {
+            const content: any[] = msg.content.map((c: any) => {
               if (c.type === "text") {
-                return { type: "text", text: (c as any).text };
+                return { type: "text", text: c.text };
               } else {
-                return { type: "image_url", image_url: { url: (c as any).url } };
+                return { type: "image_url", image_url: { url: c.url } };
               }
             });
             return { role: msg.role, content };
           });
 
           // Add current message
-          const currentContent: any[] = processedContent.map((c) => {
+          const currentContent: any[] = processedContent.map((c: any) => {
             if (c.type === "text") {
-              return { type: "text", text: (c as any).text };
+              return { type: "text", text: c.text };
             } else {
-              return { type: "image_url", image_url: { url: (c as any).url } };
+              return { type: "image_url", image_url: { url: c.url } };
             }
           });
           openaiMessages.push({ role: "user", content: currentContent });
 
           const stream = await openai.chat.completions.create({
-            model: modelMap[conversation.model] || "gpt-4o",
+            model: modelMap[model] || "gpt-4o",
             messages: openaiMessages,
             stream: true,
           });
@@ -205,14 +154,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-
-        // Save assistant message
-        await storage.addMessage(conversationId, {
-          role: "assistant",
-          content: [{ type: "text", text: fullResponse }],
-          model: conversation.model,
-          timestamp: new Date(),
-        });
 
         res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
         res.end();

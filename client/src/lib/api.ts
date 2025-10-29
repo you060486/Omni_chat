@@ -1,30 +1,8 @@
-import { Conversation, Message, AIModel } from "@shared/schema";
-
-export async function getConversations(): Promise<Conversation[]> {
-  const response = await fetch("/api/conversations");
-  if (!response.ok) throw new Error("Failed to fetch conversations");
-  return response.json();
-}
-
-export async function createConversation(model: AIModel): Promise<Conversation> {
-  const response = await fetch("/api/conversations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model }),
-  });
-  if (!response.ok) throw new Error("Failed to create conversation");
-  return response.json();
-}
-
-export async function deleteConversation(id: string): Promise<void> {
-  const response = await fetch(`/api/conversations/${id}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) throw new Error("Failed to delete conversation");
-}
+import { AIModel, Message } from "@shared/schema";
 
 export interface SendMessageOptions {
-  conversationId: string;
+  model: AIModel;
+  messages: Message[];
   content: any[];
   images?: string[];
   files?: File[];
@@ -34,10 +12,10 @@ export interface SendMessageOptions {
 }
 
 export async function sendMessage(options: SendMessageOptions): Promise<void> {
-  const { conversationId, content, images, files, onChunk, onDone, onError } = options;
+  const { model, messages, content, images, files, onChunk, onDone, onError } = options;
 
   const formData = new FormData();
-  formData.append("data", JSON.stringify({ content, images }));
+  formData.append("data", JSON.stringify({ model, messages, content, images }));
 
   if (files) {
     files.forEach((file) => {
@@ -46,7 +24,7 @@ export async function sendMessage(options: SendMessageOptions): Promise<void> {
   }
 
   try {
-    const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    const response = await fetch(`/api/chat`, {
       method: "POST",
       body: formData,
     });

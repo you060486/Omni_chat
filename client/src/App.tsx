@@ -10,7 +10,7 @@ import { NewChatDialog } from "@/components/NewChatDialog";
 import Chat from "@/pages/Chat";
 import { useState, useEffect } from "react";
 import { Conversation, AIModel } from "@shared/schema";
-import { getConversations, createConversation, deleteConversation } from "@/lib/api";
+import { storage } from "@/lib/storage";
 
 function Router() {
   return (
@@ -32,9 +32,9 @@ function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadConversations = async () => {
+  const loadConversations = () => {
     try {
-      const convs = await getConversations();
+      const convs = storage.getConversations();
       setConversations(convs);
       if (convs.length === 0) {
         // Show dialog for initial conversation
@@ -55,9 +55,9 @@ function HomePage() {
     setNewChatDialogOpen(true);
   };
 
-  const handleCreateChat = async (model: AIModel) => {
+  const handleCreateChat = (model: AIModel) => {
     try {
-      const newConv = await createConversation(model);
+      const newConv = storage.createConversation(model);
       setConversations((prev) => [newConv, ...prev]);
       setSelectedConvId(newConv.id);
     } catch (error) {
@@ -65,9 +65,9 @@ function HomePage() {
     }
   };
 
-  const handleDeleteConversation = async (id: string) => {
+  const handleDeleteConversation = (id: string) => {
     try {
-      await deleteConversation(id);
+      storage.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (selectedConvId === id && conversations.length > 1) {
         const remaining = conversations.filter((c) => c.id !== id);
@@ -76,6 +76,12 @@ function HomePage() {
     } catch (error) {
       console.error("Error deleting conversation:", error);
     }
+  };
+
+  const handleConversationUpdate = () => {
+    // Reload conversations from localStorage when messages are added
+    const convs = storage.getConversations();
+    setConversations(convs);
   };
 
   if (isLoading) {
@@ -102,6 +108,7 @@ function HomePage() {
           <Chat
             conversation={selectedConversation}
             selectedModel={selectedConversation?.model || "gpt-5"}
+            onConversationUpdate={handleConversationUpdate}
           />
         </div>
       </div>
