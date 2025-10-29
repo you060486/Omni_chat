@@ -1,4 +1,4 @@
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ImageGeneratorProps {
   open: boolean;
@@ -20,6 +21,7 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -41,20 +43,42 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
       setGeneratedImage(data.imageUrl);
     } catch (error) {
       console.error("Error generating image:", error);
-      // Fallback to mock image in case of error
-      const mockImageUrl = `https://placehold.co/512x512/2563eb/ffffff?text=${encodeURIComponent("Error")}`;
-      setGeneratedImage(mockImageUrl);
+      toast({
+        title: "Ошибка генерации",
+        description: "Не удалось создать изображение. Попробуйте еще раз.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleUse = () => {
-    if (generatedImage) {
-      onImageGenerated(generatedImage);
-      onOpenChange(false);
-      setPrompt("");
-      setGeneratedImage(null);
+  const handleDownload = async () => {
+    if (!generatedImage) return;
+    
+    try {
+      const response = await fetch(generatedImage);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `generated-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Изображение сохранено",
+        description: "Изображение успешно загружено в высоком качестве",
+      });
+    } catch (error) {
+      console.error("Error downloading image:", error);
+      toast({
+        title: "Ошибка сохранения",
+        description: "Не удалось сохранить изображение",
+        variant: "destructive",
+      });
     }
   };
 
@@ -85,11 +109,11 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
 
           {generatedImage ? (
             <div className="space-y-4">
-              <div className="overflow-hidden rounded-lg border">
+              <div className="overflow-hidden rounded-lg border max-h-[60vh] flex items-center justify-center bg-muted">
                 <img
                   src={generatedImage}
                   alt="Сгенерированное изображение"
-                  className="w-full"
+                  className="w-full h-full object-contain"
                   data-testid="generated-image"
                 />
               </div>
@@ -104,10 +128,11 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={handleUse}
-                  data-testid="button-use-image"
+                  onClick={handleDownload}
+                  data-testid="button-download-image"
                 >
-                  Использовать изображение
+                  <Download className="mr-2 h-4 w-4" />
+                  Сохранить в высоком качестве
                 </Button>
               </div>
             </div>

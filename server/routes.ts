@@ -416,10 +416,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preset prompts API
-  const verifyAdminPassword = (password: string) => {
-    return password === process.env.ADMIN_PASSWORD;
-  };
-
   // Get all preset prompts
   app.get("/api/presets", async (req, res) => {
     try {
@@ -452,16 +448,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create preset prompt (admin only)
   app.post("/api/presets", async (req, res) => {
     try {
-      const { password, ...presetData } = req.body;
-      
-      if (!verifyAdminPassword(password)) {
-        return res.status(401).json({ error: "Неверный пароль администратора" });
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Требуется авторизация" });
       }
 
       const { storage } = await import("./storage.js");
       const { insertPresetPromptSchema } = await import("@shared/schema");
       
-      const validatedData = insertPresetPromptSchema.parse(presetData);
+      const validatedData = insertPresetPromptSchema.parse(req.body);
       const preset = await storage.createPresetPrompt(validatedData);
       
       res.json(preset);
@@ -474,14 +468,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update preset prompt (admin only)
   app.put("/api/presets/:id", async (req, res) => {
     try {
-      const { password, ...updates } = req.body;
-      
-      if (!verifyAdminPassword(password)) {
-        return res.status(401).json({ error: "Неверный пароль администратора" });
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Требуется авторизация" });
       }
 
       const { storage } = await import("./storage.js");
       const { updatePresetPromptSchema } = await import("@shared/schema");
+      const updates = req.body;
       
       const validatedUpdates = updatePresetPromptSchema.parse(updates);
       const preset = await storage.updatePresetPrompt(req.params.id, validatedUpdates);
@@ -496,10 +489,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete preset prompt (admin only)
   app.delete("/api/presets/:id", async (req, res) => {
     try {
-      const { password } = req.body;
-      
-      if (!verifyAdminPassword(password)) {
-        return res.status(401).json({ error: "Неверный пароль администратора" });
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Требуется авторизация" });
       }
 
       const { storage } = await import("./storage.js");
@@ -543,10 +534,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get pending presets (admin only)
   app.get("/api/presets/pending", async (req, res) => {
     try {
-      const password = req.headers["x-admin-password"];
-      
-      if (!verifyAdminPassword(password as string)) {
-        return res.status(401).json({ error: "Неверный пароль администратора" });
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Требуется авторизация" });
       }
 
       const { storage } = await import("./storage.js");
@@ -561,12 +550,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update preset status (admin only - approve/reject)
   app.patch("/api/presets/:id/status", async (req, res) => {
     try {
-      const { password, status } = req.body;
-      
-      if (!verifyAdminPassword(password)) {
-        return res.status(401).json({ error: "Неверный пароль администратора" });
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "Требуется авторизация" });
       }
 
+      const { status } = req.body;
+      
       if (!["approved", "rejected"].includes(status)) {
         return res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'" });
       }

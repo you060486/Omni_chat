@@ -60,12 +60,7 @@ export default function AdminPanel() {
 
   const createMutation = useMutation({
     mutationFn: async (data: InsertPresetPrompt) => {
-      const adminPassword = prompt("Введите пароль администратора:");
-      if (!adminPassword) throw new Error("Пароль не введен");
-      
-      return apiRequest("POST", "/api/presets", data, {
-        "x-admin-password": adminPassword,
-      });
+      return apiRequest("POST", "/api/presets", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/presets"] });
@@ -86,12 +81,7 @@ export default function AdminPanel() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertPresetPrompt> }) => {
-      const adminPassword = prompt("Введите пароль администратора:");
-      if (!adminPassword) throw new Error("Пароль не введен");
-      
-      return apiRequest("PUT", `/api/presets/${id}`, data, {
-        "x-admin-password": adminPassword,
-      });
+      return apiRequest("PUT", `/api/presets/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/presets"] });
@@ -112,12 +102,7 @@ export default function AdminPanel() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const adminPassword = prompt("Введите пароль администратора:");
-      if (!adminPassword) throw new Error("Пароль не введен");
-      
-      return apiRequest("DELETE", `/api/presets/${id}`, undefined, {
-        "x-admin-password": adminPassword,
-      });
+      return apiRequest("DELETE", `/api/presets/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/presets"] });
@@ -137,10 +122,7 @@ export default function AdminPanel() {
 
   const moderateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
-      const adminPassword = prompt("Введите пароль администратора:");
-      if (!adminPassword) throw new Error("Пароль не введен");
-      
-      return apiRequest("PATCH", `/api/presets/${id}/status`, { status, password: adminPassword });
+      return apiRequest("PATCH", `/api/presets/${id}/status`, { status });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/presets/pending"] });
