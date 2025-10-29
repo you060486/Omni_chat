@@ -69,7 +69,7 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
         <DialogHeader>
           <DialogTitle>Генерация изображения</DialogTitle>
           <DialogDescription>
-            Опишите изображение, которое хотите создать с помощью DALL-E 3
+            Опишите изображение, которое хотите создать с помощью Nano Banana (Gemini 2.5 Flash Image)
           </DialogDescription>
         </DialogHeader>
         

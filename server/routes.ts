@@ -8,7 +8,12 @@ import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fieldSize: 25 * 1024 * 1024, // 25MB - для поддержки base64 изображений в истории
+  }
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -288,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate image using OpenAI DALL-E
+  // Generate image using Gemini 2.5 Flash Image (Nano Banana)
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt } = req.body;
@@ -297,20 +302,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      const response = await openai.images.generate({
-        model: "dall-e-3",
-        prompt: prompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "standard",
-      });
-
-      const imageUrl = response.data[0]?.url;
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
       
-      if (imageUrl) {
-        res.json({ imageUrl });
+      const result = await model.generateContent(prompt);
+      const response = result.response;
+
+      // Extract image data from response
+      const parts = response.candidates?.[0]?.content?.parts;
+      const imageData = parts?.find((part: any) => part.inlineData);
+      
+      if (imageData && imageData.inlineData) {
+        const base64Image = imageData.inlineData.data;
+        const mimeType = imageData.inlineData.mimeType || "image/png";
+        const dataUrl = `data:${mimeType};base64,${base64Image}`;
+        
+        res.json({ imageUrl: dataUrl });
       } else {
-        throw new Error("No image URL in response");
+        throw new Error("No image data in response");
       }
     } catch (error) {
       console.error("Error generating image:", error);
