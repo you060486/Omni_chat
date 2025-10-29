@@ -1,4 +1,4 @@
-import { AIModel, Message } from "@shared/schema";
+import { AIModel, Message, ModelSettings } from "@shared/schema";
 
 export interface SendMessageOptions {
   model: AIModel;
@@ -6,16 +6,17 @@ export interface SendMessageOptions {
   content: any[];
   images?: string[];
   files?: File[];
+  settings?: ModelSettings;
   onChunk?: (text: string) => void;
   onDone?: () => void;
   onError?: (error: Error) => void;
 }
 
 export async function sendMessage(options: SendMessageOptions): Promise<void> {
-  const { model, messages, content, images, files, onChunk, onDone, onError } = options;
+  const { model, messages, content, images, files, settings, onChunk, onDone, onError } = options;
 
   const formData = new FormData();
-  formData.append("data", JSON.stringify({ model, messages, content, images }));
+  formData.append("data", JSON.stringify({ model, messages, content, images, settings }));
 
   if (files) {
     files.forEach((file) => {

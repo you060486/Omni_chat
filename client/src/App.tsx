@@ -9,7 +9,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { NewChatDialog } from "@/components/NewChatDialog";
 import Chat from "@/pages/Chat";
 import { useState, useEffect } from "react";
-import { Conversation, AIModel } from "@shared/schema";
+import { Conversation, AIModel, ModelSettings } from "@shared/schema";
 import { storage } from "@/lib/storage";
 
 function Router() {
@@ -55,9 +55,9 @@ function HomePage() {
     setNewChatDialogOpen(true);
   };
 
-  const handleCreateChat = (model: AIModel) => {
+  const handleCreateChat = (model: AIModel, settings?: ModelSettings) => {
     try {
-      const newConv = storage.createConversation(model);
+      const newConv = storage.createConversation(model, settings);
       setConversations((prev) => [newConv, ...prev]);
       setSelectedConvId(newConv.id);
     } catch (error) {

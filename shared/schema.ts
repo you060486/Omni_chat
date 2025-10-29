@@ -19,6 +19,16 @@ export type User = typeof users.$inferSelect;
 
 export type AIModel = "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini";
 
+export type ReasoningEffort = "low" | "medium" | "high";
+
+export interface ModelSettings {
+  systemPrompt?: string;
+  temperature?: number; // 0-2
+  maxTokens?: number;
+  topP?: number; // 0-1
+  reasoningEffort?: ReasoningEffort; // для o3-mini
+}
+
 export type MessageRole = "user" | "assistant";
 
 export type MessageContent = {
@@ -43,6 +53,7 @@ export interface Conversation {
   title: string;
   messages: Message[];
   model: AIModel;
+  settings?: ModelSettings;
   createdAt: Date;
   updatedAt: Date;
 }

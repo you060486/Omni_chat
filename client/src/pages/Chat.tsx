@@ -79,6 +79,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
       content: userContent,
       images,
       files,
+      settings: conversation.settings,
       onChunk: (chunk) => {
         streamingTextRef.current += chunk;
         setStreamingText(streamingTextRef.current);

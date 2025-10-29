@@ -1,4 +1,4 @@
-import { Conversation, AIModel, Message } from "@shared/schema";
+import { Conversation, AIModel, Message, ModelSettings } from "@shared/schema";
 
 const CONVERSATIONS_KEY = "ai-chat-conversations";
 
@@ -32,13 +32,14 @@ export const storage = {
     }
   },
 
-  createConversation(model: AIModel): Conversation {
+  createConversation(model: AIModel, settings?: ModelSettings): Conversation {
     const conversations = this.getConversations();
     const newConversation: Conversation = {
       id: Date.now().toString(),
       title: "Новый разговор",
       messages: [],
       model,
+      settings,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

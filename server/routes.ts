@@ -29,8 +29,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Chat endpoint - send message and get AI response (with streaming)
   app.post("/api/chat", upload.array("files"), async (req, res) => {
     try {
-      const { model, messages: messageHistory, content, images } = JSON.parse(req.body.data || "{}");
+      const { model, messages: messageHistory, content, images, settings } = JSON.parse(req.body.data || "{}");
       const files = req.files as Express.Multer.File[] || [];
+      
+      // Extract settings
+      const {
+        systemPrompt,
+        temperature = 1,
+        maxTokens,
+        topP = 1,
+        reasoningEffort = "medium"
+      } = settings || {};
 
       // Process uploaded files
       const processedContent = [...(content || [])];
@@ -81,8 +90,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         if (model === "gemini") {
-          // Gemini model
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+          // Gemini model with settings
+          const modelConfig: any = { model: "gemini-2.5-pro" };
+          
+          // Add system instruction if provided
+          if (systemPrompt) {
+            modelConfig.systemInstruction = systemPrompt;
+          }
+          
+          const geminiModel = genAI.getGenerativeModel(modelConfig);
           
           // Convert message history to Gemini format  
           const chatHistory = messages.map((msg: any) => {
@@ -93,7 +109,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           });
 
-          const chat = model.startChat({ history: chatHistory });
+          // Prepare generation config
+          const generationConfig: any = {};
+          if (temperature !== 1) generationConfig.temperature = temperature;
+          if (maxTokens) generationConfig.maxOutputTokens = maxTokens;
+          if (topP !== 1) generationConfig.topP = topP;
+
+          const chat = geminiModel.startChat({ 
+            history: chatHistory,
+            generationConfig: Object.keys(generationConfig).length > 0 ? generationConfig : undefined
+          });
           
           // Prepare current message
           const parts: any[] = [];
@@ -129,7 +154,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
 
           // Convert message history to OpenAI format
-          const openaiMessages: any[] = messages.map((msg: any) => {
+          const openaiMessages: any[] = [];
+          
+          // Add system message if provided
+          if (systemPrompt) {
+            openaiMessages.push({ role: "system", content: systemPrompt });
+          }
+          
+          // Add message history
+          openaiMessages.push(...messages.map((msg: any) => {
             const content: any[] = msg.content.map((c: any) => {
               if (c.type === "text") {
                 return { type: "text", text: c.text };
@@ -138,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             });
             return { role: msg.role, content };
-          });
+          }));
 
           // Add current message
           const currentContent: any[] = processedContent.map((c: any) => {
@@ -169,12 +202,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }];
 
-          const stream = await openai.chat.completions.create({
+          // Prepare API parameters
+          const apiParams: any = {
             model: modelMap[model] || "gpt-5-2025-08-07",
             messages: openaiMessages,
             tools: tools,
             stream: true,
-          });
+          };
+          
+          // Add optional parameters
+          if (temperature !== 1) apiParams.temperature = temperature;
+          if (maxTokens) apiParams.max_tokens = maxTokens;
+          if (topP !== 1) apiParams.top_p = topP;
+          
+          // Add reasoning_effort for o3-mini
+          if (model === "o3-mini" && reasoningEffort) {
+            apiParams.reasoning_effort = reasoningEffort;
+          }
+          
+          const stream = await openai.chat.completions.create(apiParams);
 
           let toolCalls: any[] = [];
           let currentToolCall: any = null;
