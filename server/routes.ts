@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { tavily } from "@tavily/core";
 import { createRequire } from "module";
+import { setupAuth } from "./auth";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
@@ -26,6 +27,9 @@ const tavilyClient = tavily({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication routes
+  setupAuth(app);
+
   // Chat endpoint - send message and get AI response (with streaming)
   app.post("/api/chat", upload.array("files"), async (req, res) => {
     try {

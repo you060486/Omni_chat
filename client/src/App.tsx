@@ -5,9 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 import { AppSidebar } from "@/components/AppSidebar";
 import { NewChatDialog } from "@/components/NewChatDialog";
 import { ImageGenerator } from "@/components/ImageGenerator";
+import AuthPage from "@/pages/AuthPage";
 import Chat from "@/pages/Chat";
 import { useState, useEffect, useRef } from "react";
 import { Conversation, AIModel, ModelSettings } from "@shared/schema";
@@ -16,8 +19,8 @@ import { storage } from "@/lib/storage";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={HomePage} />
-      <Route path="*" component={HomePage} />
+      <ProtectedRoute path="/" component={HomePage} />
+      <Route path="/auth" component={AuthPage} />
     </Switch>
   );
 }
@@ -220,10 +223,12 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <Router />
-          </SidebarProvider>
-          <Toaster />
+          <AuthProvider>
+            <SidebarProvider style={style as React.CSSProperties}>
+              <Router />
+              <Toaster />
+            </SidebarProvider>
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
