@@ -512,6 +512,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get approved presets (for NewChatDialog)
+  app.get("/api/presets/approved", async (req, res) => {
+    try {
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getApprovedPresetPrompts();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching approved presets:", error);
+      res.status(500).json({ error: "Failed to fetch approved presets" });
+    }
+  });
+
+  // Get user's own presets
+  app.get("/api/presets/user/:userId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Не авторизован" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getUserPresetPrompts(req.params.userId);
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching user presets:", error);
+      res.status(500).json({ error: "Failed to fetch user presets" });
+    }
+  });
+
+  // Get pending presets (admin only)
+  app.get("/api/presets/pending", async (req, res) => {
+    try {
+      const password = req.headers["x-admin-password"];
+      
+      if (!verifyAdminPassword(password as string)) {
+        return res.status(401).json({ error: "Неверный пароль администратора" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getPendingPresetPrompts();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching pending presets:", error);
+      res.status(500).json({ error: "Failed to fetch pending presets" });
+    }
+  });
+
+  // Update preset status (admin only - approve/reject)
+  app.patch("/api/presets/:id/status", async (req, res) => {
+    try {
+      const { password, status } = req.body;
+      
+      if (!verifyAdminPassword(password)) {
+        return res.status(401).json({ error: "Неверный пароль администратора" });
+      }
+
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const preset = await storage.updatePresetPrompt(req.params.id, { status });
+      
+      res.json(preset);
+    } catch (error) {
+      console.error("Error updating preset status:", error);
+      res.status(500).json({ error: "Failed to update preset status" });
+    }
+  });
+
+  // Create user preset (authenticated users)
+  app.post("/api/presets/user", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Не авторизован" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const { insertPresetPromptSchema } = await import("@shared/schema");
+      
+      const validatedData = insertPresetPromptSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+        status: "pending",
+      });
+      
+      const preset = await storage.createPresetPrompt(validatedData);
+      
+      res.json(preset);
+    } catch (error) {
+      console.error("Error creating user preset:", error);
+      res.status(500).json({ error: "Failed to create preset" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

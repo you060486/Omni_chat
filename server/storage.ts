@@ -46,6 +46,9 @@ export interface IStorage {
   // Preset prompts management
   getPresetPrompts(): Promise<PresetPrompt[]>;
   getPresetPrompt(id: string): Promise<PresetPrompt | undefined>;
+  getUserPresetPrompts(userId: string): Promise<PresetPrompt[]>;
+  getApprovedPresetPrompts(): Promise<PresetPrompt[]>;
+  getPendingPresetPrompts(): Promise<PresetPrompt[]>;
   createPresetPrompt(preset: InsertPresetPrompt): Promise<PresetPrompt>;
   updatePresetPrompt(id: string, updates: UpdatePresetPrompt): Promise<PresetPrompt>;
   deletePresetPrompt(id: string): Promise<void>;
@@ -176,14 +179,34 @@ export class MemStorage implements IStorage {
     return this.presetPrompts.get(id);
   }
 
+  async getUserPresetPrompts(userId: string): Promise<PresetPrompt[]> {
+    return Array.from(this.presetPrompts.values())
+      .filter((p) => p.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getApprovedPresetPrompts(): Promise<PresetPrompt[]> {
+    return Array.from(this.presetPrompts.values())
+      .filter((p) => p.status === "admin" || p.status === "approved")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getPendingPresetPrompts(): Promise<PresetPrompt[]> {
+    return Array.from(this.presetPrompts.values())
+      .filter((p) => p.status === "pending")
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
   async createPresetPrompt(preset: InsertPresetPrompt): Promise<PresetPrompt> {
     const id = randomUUID();
     const now = new Date();
     const presetPrompt: PresetPrompt = {
       id,
+      userId: preset.userId ?? null,
       name: preset.name,
       description: preset.description ?? null,
       modelSettings: preset.modelSettings as ModelSettings,
+      status: preset.status ?? "admin",
       createdAt: now,
       updatedAt: now,
     };
@@ -201,6 +224,7 @@ export class MemStorage implements IStorage {
       ...(updates.name && { name: updates.name }),
       ...(updates.description !== undefined && { description: updates.description ?? null }),
       ...(updates.modelSettings && { modelSettings: updates.modelSettings as ModelSettings }),
+      ...(updates.status && { status: updates.status }),
       updatedAt: new Date(),
     };
     this.presetPrompts.set(id, updated);
@@ -378,11 +402,53 @@ export class DatabaseStorage implements IStorage {
     return prompt || undefined;
   }
 
+  async getUserPresetPrompts(userId: string): Promise<PresetPrompt[]> {
+    const prompts = await db
+      .select()
+      .from(presetPrompts)
+      .where(eq(presetPrompts.userId, userId))
+      .orderBy(desc(presetPrompts.createdAt));
+    return prompts;
+  }
+
+  async getApprovedPresetPrompts(): Promise<PresetPrompt[]> {
+    const prompts = await db
+      .select()
+      .from(presetPrompts)
+      .where(
+        and(
+          eq(presetPrompts.status, "admin"),
+        )
+      )
+      .orderBy(desc(presetPrompts.createdAt));
+    
+    const approvedPrompts = await db
+      .select()
+      .from(presetPrompts)
+      .where(eq(presetPrompts.status, "approved"))
+      .orderBy(desc(presetPrompts.createdAt));
+    
+    return [...prompts, ...approvedPrompts].sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    );
+  }
+
+  async getPendingPresetPrompts(): Promise<PresetPrompt[]> {
+    const prompts = await db
+      .select()
+      .from(presetPrompts)
+      .where(eq(presetPrompts.status, "pending"))
+      .orderBy(desc(presetPrompts.createdAt));
+    return prompts;
+  }
+
   async createPresetPrompt(preset: InsertPresetPrompt): Promise<PresetPrompt> {
     const [created] = await db.insert(presetPrompts).values({
+      userId: preset.userId,
       name: preset.name,
       description: preset.description,
-      modelSettings: preset.modelSettings,
+      modelSettings: preset.modelSettings as ModelSettings,
+      status: preset.status ?? "admin",
     }).returning();
     return created;
   }
@@ -392,6 +458,7 @@ export class DatabaseStorage implements IStorage {
     if (updates.name) updateData.name = updates.name;
     if (updates.description !== undefined) updateData.description = updates.description;
     if (updates.modelSettings) updateData.modelSettings = updates.modelSettings;
+    if (updates.status) updateData.status = updates.status;
 
     const [updated] = await db
       .update(presetPrompts)
