@@ -1,4 +1,4 @@
-import { PlusCircle, Sparkles, LogOut, User, Settings } from "lucide-react";
+import { PlusCircle, Sparkles, LogOut, User, Settings, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -51,13 +51,13 @@ export function AppSidebar({
     <Sidebar>
       <SidebarHeader className="border-b p-4 space-y-2">
         <Button
-          className="w-full justify-start gap-2"
-          onClick={handleHomeClick}
           variant="ghost"
+          className="w-full justify-start gap-3 px-2 py-2 h-auto hover-elevate"
+          onClick={handleHomeClick}
           data-testid="button-home"
         >
-          <User className="h-5 w-5" />
-          <span>Главная</span>
+          <Bot className="h-6 w-6 text-primary" />
+          <span className="text-lg font-bold">AI CHAT</span>
         </Button>
         <Button
           className="w-full justify-start gap-2"

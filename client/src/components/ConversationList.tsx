@@ -145,7 +145,7 @@ export function ConversationList({
       </ScrollArea>
 
       <Dialog open={!!editingId} onOpenChange={() => setEditingId(null)}>
-        <DialogContent data-testid="dialog-rename-conversation">
+        <DialogContent data-testid="dialog-rename-conversation" className="max-w-md">
           <DialogHeader>
             <DialogTitle>Переименовать чат</DialogTitle>
           </DialogHeader>
@@ -158,6 +158,8 @@ export function ConversationList({
                 handleRename();
               }
             }}
+            autoFocus
+            className="w-full"
             data-testid="input-rename-title"
           />
           <DialogFooter>

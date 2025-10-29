@@ -141,14 +141,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
-        <div className="flex items-center gap-3">
-          <SidebarTrigger data-testid="button-sidebar-toggle" />
-          <Bot className="h-5 w-5 md:hidden" />
-          <div className="hidden md:flex items-center gap-2">
-            <Bot className="h-5 w-5" />
-            <h1 className="font-semibold">AI Chat</h1>
-          </div>
-        </div>
+        <SidebarTrigger data-testid="button-sidebar-toggle" />
         <div className="flex items-center gap-2">
           {conversation && (
             <>
