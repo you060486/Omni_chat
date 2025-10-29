@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, jsonb, serial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,6 +16,27 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const presetPrompts = pgTable("preset_prompts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  modelSettings: jsonb("model_settings").notNull().$type<ModelSettings>(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPresetPromptSchema = createInsertSchema(presetPrompts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePresetPromptSchema = insertPresetPromptSchema.partial();
+
+export type InsertPresetPrompt = z.infer<typeof insertPresetPromptSchema>;
+export type UpdatePresetPrompt = z.infer<typeof updatePresetPromptSchema>;
+export type PresetPrompt = typeof presetPrompts.$inferSelect;
 
 export type AIModel = "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini";
 
