@@ -512,6 +512,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get approved presets (for NewChatDialog) - MUST be before /:id
+  app.get("/api/presets/approved", async (req, res) => {
+    try {
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getApprovedPresetPrompts();
+      console.log("[/api/presets/approved] Fetched presets:", presets.length, presets);
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching approved presets:", error);
+      res.status(500).json({ error: "Failed to fetch approved presets" });
+    }
+  });
+
+  // Get pending presets (admin only) - MUST be before /:id
+  app.get("/api/presets/pending", async (req, res) => {
+    try {
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
+      }
+
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getPendingPresetPrompts();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching pending presets:", error);
+      res.status(500).json({ error: "Failed to fetch pending presets" });
+    }
+  });
+
+  // Get user's own presets - MUST be before /:id
+  app.get("/api/presets/user/:userId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Не авторизован" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getUserPresetPrompts(req.params.userId);
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching user presets:", error);
+      res.status(500).json({ error: "Failed to fetch user presets" });
+    }
+  });
+
   // Get single preset prompt
   app.get("/api/presets/:id", async (req, res) => {
     try {
@@ -588,50 +633,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting preset:", error);
       res.status(500).json({ error: "Failed to delete preset" });
-    }
-  });
-
-  // Get approved presets (for NewChatDialog)
-  app.get("/api/presets/approved", async (req, res) => {
-    try {
-      const { storage } = await import("./storage.js");
-      const presets = await storage.getApprovedPresetPrompts();
-      res.json(presets);
-    } catch (error) {
-      console.error("Error fetching approved presets:", error);
-      res.status(500).json({ error: "Failed to fetch approved presets" });
-    }
-  });
-
-  // Get user's own presets
-  app.get("/api/presets/user/:userId", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ error: "Не авторизован" });
-      }
-
-      const { storage } = await import("./storage.js");
-      const presets = await storage.getUserPresetPrompts(req.params.userId);
-      res.json(presets);
-    } catch (error) {
-      console.error("Error fetching user presets:", error);
-      res.status(500).json({ error: "Failed to fetch user presets" });
-    }
-  });
-
-  // Get pending presets (admin only)
-  app.get("/api/presets/pending", async (req, res) => {
-    try {
-      if (!isAdmin(req)) {
-        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
-      }
-
-      const { storage } = await import("./storage.js");
-      const presets = await storage.getPendingPresetPrompts();
-      res.json(presets);
-    } catch (error) {
-      console.error("Error fetching pending presets:", error);
-      res.status(500).json({ error: "Failed to fetch pending presets" });
     }
   });
 
