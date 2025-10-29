@@ -33,8 +33,8 @@ export default function AuthPage() {
   return (
     <div className="flex min-h-screen">
       {/* Left side - Auth forms */}
-      <div className="flex w-full flex-col justify-center items-center px-8 lg:w-1/2 lg:px-16">
-        <div className="w-full max-w-md">
+      <div className="flex w-full flex-col justify-center px-8 lg:w-1/2 lg:px-16">
+        <div className="mx-auto w-full max-w-md">
           <div className="mb-8 text-center">
             <Bot className="mx-auto mb-4 h-12 w-12 text-primary" />
             <h1 className="text-3xl font-bold">AI Chat</h1>
