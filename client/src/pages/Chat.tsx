@@ -3,9 +3,11 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { VoiceInput } from "@/components/VoiceInput";
+import { SavePresetDialog } from "@/components/SavePresetDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button } from "@/components/ui/button";
 import { Message, AIModel, Conversation } from "@shared/schema";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, Save } from "lucide-react";
 import { sendMessage } from "@/lib/api";
 import { storage } from "@/lib/storage";
 
@@ -19,6 +21,7 @@ interface ChatProps {
 export default function Chat({ conversation, selectedModel, onConversationUpdate, onImageGenerated }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || []);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [savePresetOpen, setSavePresetOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const streamingTextRef = useRef<string>("");
@@ -136,7 +139,20 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
             <h1 className="font-semibold">AI Chat</h1>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          {conversation?.settings && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSavePresetOpen(true)}
+              data-testid="button-save-preset"
+            >
+              <Save className="h-4 w-4" />
+              Сохранить промпт
+            </Button>
+          )}
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto" ref={scrollRef}>
@@ -194,6 +210,15 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         onOpenChange={setVoiceOpen}
         onTranscript={handleVoiceTranscript}
       />
+
+      {conversation?.settings && (
+        <SavePresetDialog
+          open={savePresetOpen}
+          onOpenChange={setSavePresetOpen}
+          modelSettings={conversation.settings}
+          onSuccess={onConversationUpdate}
+        />
+      )}
     </div>
   );
 }
