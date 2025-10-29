@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { tavily } from "@tavily/core";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
@@ -14,6 +15,10 @@ const openai = new OpenAI({
 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+const tavilyClient = tavily({ 
+  apiKey: process.env.TAVILY_API_KEY || ""
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Chat endpoint - send message and get AI response (with streaming)
@@ -140,17 +145,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           openaiMessages.push({ role: "user", content: currentContent });
 
+          // Define web search tool
+          const tools = [{
+            type: "function" as const,
+            function: {
+              name: "web_search",
+              description: "Search the web for current information, news, facts, or any information not in your knowledge base. Use this when you need up-to-date or specific information.",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: {
+                    type: "string",
+                    description: "The search query to find relevant information"
+                  }
+                },
+                required: ["query"]
+              }
+            }
+          }];
+
           const stream = await openai.chat.completions.create({
             model: modelMap[model] || "gpt-5-2025-08-07",
             messages: openaiMessages,
+            tools: tools,
             stream: true,
           });
 
+          let toolCalls: any[] = [];
+          let currentToolCall: any = null;
+
           for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content || "";
+            const delta = chunk.choices[0]?.delta;
+            
+            // Handle tool calls
+            if (delta?.tool_calls) {
+              for (const toolCall of delta.tool_calls) {
+                if (toolCall.index !== undefined) {
+                  if (!toolCalls[toolCall.index]) {
+                    toolCalls[toolCall.index] = {
+                      id: toolCall.id || "",
+                      type: "function",
+                      function: { name: "", arguments: "" }
+                    };
+                  }
+                  
+                  if (toolCall.id) {
+                    toolCalls[toolCall.index].id = toolCall.id;
+                  }
+                  
+                  if (toolCall.function?.name) {
+                    toolCalls[toolCall.index].function.name = toolCall.function.name;
+                  }
+                  
+                  if (toolCall.function?.arguments) {
+                    toolCalls[toolCall.index].function.arguments += toolCall.function.arguments;
+                  }
+                }
+              }
+            }
+            
+            // Handle regular content
+            const content = delta?.content || "";
             if (content) {
               fullResponse += content;
               res.write(`data: ${JSON.stringify({ content })}\n\n`);
+            }
+          }
+
+          // Execute tool calls if any
+          if (toolCalls.length > 0) {
+            for (const toolCall of toolCalls) {
+              if (toolCall.function.name === "web_search") {
+                const args = JSON.parse(toolCall.function.arguments);
+                
+                // Notify user about search
+                res.write(`data: ${JSON.stringify({ content: `\n\n🔍 Поиск в интернете: "${args.query}"\n\n` })}\n\n`);
+                
+                // Execute search
+                const searchResult = await tavilyClient.search(args.query, {
+                  searchDepth: "advanced",
+                  maxResults: 5,
+                  includeAnswer: true,
+                });
+
+                // Add tool response to messages
+                openaiMessages.push({
+                  role: "assistant",
+                  content: null,
+                  tool_calls: [toolCall]
+                });
+
+                openaiMessages.push({
+                  role: "tool",
+                  tool_call_id: toolCall.id,
+                  content: JSON.stringify({
+                    answer: searchResult.answer,
+                    results: searchResult.results?.map((r: any) => ({
+                      title: r.title,
+                      url: r.url,
+                      content: r.content
+                    }))
+                  })
+                });
+
+                // Continue conversation with search results
+                const followUpStream = await openai.chat.completions.create({
+                  model: modelMap[model] || "gpt-5-2025-08-07",
+                  messages: openaiMessages,
+                  stream: true,
+                });
+
+                for await (const chunk of followUpStream) {
+                  const content = chunk.choices[0]?.delta?.content || "";
+                  if (content) {
+                    fullResponse += content;
+                    res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                  }
+                }
+              }
             }
           }
         }
@@ -159,8 +271,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.end();
       } catch (error) {
         console.error("Error generating AI response:", error);
-        res.write(`data: ${JSON.stringify({ error: "Failed to generate response" })}\n\n`);
-        res.end();
+        // Only send error if connection is still open and no response was sent yet
+        if (!res.writableEnded && !fullResponse) {
+          res.write(`data: ${JSON.stringify({ error: "Failed to generate response" })}\n\n`);
+          res.end();
+        } else if (!res.writableEnded) {
+          // If some response was already sent, just close gracefully
+          res.end();
+        }
       }
     } catch (error) {
       console.error("Error processing message:", error);
