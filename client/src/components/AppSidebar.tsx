@@ -76,15 +76,17 @@ export function AppSidebar({
           <Sparkles className="h-5 w-5" />
           <span>Генерация изображения</span>
         </Button>
-        <Button
-          className="w-full justify-start gap-2"
-          variant="outline"
-          onClick={handleAdminClick}
-          data-testid="button-admin-panel"
-        >
-          <Settings className="h-5 w-5" />
-          <span>Админ-панель</span>
-        </Button>
+        {user?.username === "admin" && (
+          <Button
+            className="w-full justify-start gap-2"
+            variant="outline"
+            onClick={handleAdminClick}
+            data-testid="button-admin-panel"
+          >
+            <Settings className="h-5 w-5" />
+            <span>Админ-панель</span>
+          </Button>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

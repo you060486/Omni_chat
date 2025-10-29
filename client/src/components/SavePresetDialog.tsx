@@ -45,11 +45,19 @@ export function SavePresetDialog({
 
     setIsSaving(true);
     try {
-      await apiRequest("POST", "/api/presets/user", {
-        name: name.trim(),
-        description: description.trim() || null,
-        modelSettings,
+      const response = await fetch("/api/presets/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || null,
+          modelSettings,
+        }),
       });
+      
+      if (!response.ok) {
+        throw new Error("Failed to save preset");
+      }
 
       toast({
         title: "Успешно",

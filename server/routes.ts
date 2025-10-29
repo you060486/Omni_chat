@@ -415,6 +415,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Conversations API
+  app.get("/api/conversations", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Требуется авторизация" });
+      }
+      
+      const { storage } = await import("./storage.js");
+      const conversations = await storage.getConversations(req.user.id);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      res.status(500).json({ error: "Failed to fetch conversations" });
+    }
+  });
+
+  app.post("/api/conversations", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Требуется авторизация" });
+      }
+      
+      const { model, settings } = req.body;
+      const { storage } = await import("./storage.js");
+      const conversation = await storage.createConversation(req.user.id, model, settings);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      res.status(500).json({ error: "Failed to create conversation" });
+    }
+  });
+
+  app.put("/api/conversations/:id", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Требуется авторизация" });
+      }
+      
+      const { storage } = await import("./storage.js");
+      const conversation = await storage.updateConversation(req.params.id, req.user.id, req.body);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      res.status(500).json({ error: "Failed to update conversation" });
+    }
+  });
+
+  app.delete("/api/conversations/:id", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Требуется авторизация" });
+      }
+      
+      const { storage } = await import("./storage.js");
+      await storage.deleteConversation(req.params.id, req.user.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      res.status(500).json({ error: "Failed to delete conversation" });
+    }
+  });
+
+  app.post("/api/conversations/:id/messages", async (req, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ error: "Требуется авторизация" });
+      }
+      
+      const { storage } = await import("./storage.js");
+      const message = await storage.addMessage(req.params.id, req.user.id, req.body);
+      res.json(message);
+    } catch (error) {
+      console.error("Error adding message:", error);
+      res.status(500).json({ error: "Failed to add message" });
+    }
+  });
+
   // Preset prompts API
   // Helper to check if user is admin
   const isAdmin = (req: any) => {

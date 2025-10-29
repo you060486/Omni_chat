@@ -66,8 +66,8 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
       timestamp: new Date(),
     };
 
-    // Save user message to localStorage
-    storage.addMessage(conversation.id, userMessage);
+    // Save user message to API
+    await storage.addMessage(conversation.id, userMessage);
     setMessages((prev) => [...prev, userMessage]);
     onConversationUpdate();
     
@@ -86,7 +86,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         streamingTextRef.current += chunk;
         setStreamingText(streamingTextRef.current);
       },
-      onDone: () => {
+      onDone: async () => {
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -95,8 +95,8 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
           timestamp: new Date(),
         };
         
-        // Save AI message to localStorage
-        storage.addMessage(conversation.id, aiMessage);
+        // Save AI message to API
+        await storage.addMessage(conversation.id, aiMessage);
         setMessages((prev) => [...prev, aiMessage]);
         onConversationUpdate();
         
@@ -104,7 +104,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         streamingTextRef.current = "";
         setIsStreaming(false);
       },
-      onError: (error) => {
+      onError: async (error) => {
         console.error("Error sending message:", error);
         setStreamingText("");
         streamingTextRef.current = "";
@@ -117,8 +117,8 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
           timestamp: new Date(),
         };
         
-        // Save error message to localStorage
-        storage.addMessage(conversation.id, errorMessage);
+        // Save error message to API
+        await storage.addMessage(conversation.id, errorMessage);
         setMessages((prev) => [...prev, errorMessage]);
         onConversationUpdate();
       },

@@ -1,13 +1,11 @@
 import { Conversation, AIModel, Message, ModelSettings } from "@shared/schema";
 
-const CONVERSATIONS_KEY = "ai-chat-conversations";
-
 export const storage = {
-  getConversations(): Conversation[] {
+  async getConversations(): Promise<Conversation[]> {
     try {
-      const data = localStorage.getItem(CONVERSATIONS_KEY);
-      if (!data) return [];
-      const conversations = JSON.parse(data);
+      const response = await fetch("/api/conversations");
+      if (!response.ok) throw new Error("Failed to fetch conversations");
+      const conversations = await response.json();
       // Parse dates back to Date objects
       return conversations.map((conv: any) => ({
         ...conv,
@@ -19,80 +17,77 @@ export const storage = {
         })),
       }));
     } catch (error) {
-      console.error("Error reading conversations from localStorage:", error);
+      console.error("Error fetching conversations:", error);
       return [];
     }
   },
 
-  saveConversations(conversations: Conversation[]): void {
+  async createConversation(model: AIModel, settings?: ModelSettings): Promise<Conversation> {
     try {
-      localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+      const response = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model, settings }),
+      });
+      if (!response.ok) throw new Error("Failed to create conversation");
+      const conversation = await response.json();
+      return {
+        ...conversation,
+        createdAt: new Date(conversation.createdAt),
+        updatedAt: new Date(conversation.updatedAt),
+        messages: conversation.messages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        })),
+      };
     } catch (error) {
-      console.error("Error saving conversations to localStorage:", error);
+      console.error("Error creating conversation:", error);
+      throw error;
     }
   },
 
-  createConversation(model: AIModel, settings?: ModelSettings): Conversation {
-    const conversations = this.getConversations();
-    const newConversation: Conversation = {
-      id: Date.now().toString(),
-      title: "Новый разговор",
-      messages: [],
-      model,
-      settings,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    const updated = [newConversation, ...conversations];
-    this.saveConversations(updated);
-    return newConversation;
+  async deleteConversation(id: string): Promise<void> {
+    try {
+      const response = await fetch(`/api/conversations/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete conversation");
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+      throw error;
+    }
   },
 
-  deleteConversation(id: string): void {
-    const conversations = this.getConversations();
-    const filtered = conversations.filter((c) => c.id !== id);
-    this.saveConversations(filtered);
-  },
-
-  getConversation(id: string): Conversation | undefined {
-    const conversations = this.getConversations();
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    const conversations = await this.getConversations();
     return conversations.find((c) => c.id === id);
   },
 
-  addMessage(conversationId: string, message: Message): void {
-    const conversations = this.getConversations();
-    const convIndex = conversations.findIndex((c) => c.id === conversationId);
-    
-    if (convIndex === -1) return;
-
-    const conversation = conversations[convIndex];
-    conversation.messages.push(message);
-    conversation.updatedAt = new Date();
-
-    // Update title based on first user message
-    if (conversation.messages.length === 1 && message.role === "user") {
-      const firstTextContent = message.content.find((c) => c.type === "text");
-      if (firstTextContent && firstTextContent.type === "text") {
-        conversation.title = firstTextContent.text.slice(0, 50);
-      }
+  async addMessage(conversationId: string, message: Omit<Message, "id">): Promise<void> {
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(message),
+      });
+      if (!response.ok) throw new Error("Failed to add message");
+    } catch (error) {
+      console.error("Error adding message:", error);
+      throw error;
     }
-
-    conversations[convIndex] = conversation;
-    this.saveConversations(conversations);
   },
 
-  updateConversation(id: string, updates: Partial<Conversation>): void {
-    const conversations = this.getConversations();
-    const convIndex = conversations.findIndex((c) => c.id === id);
-    
-    if (convIndex === -1) return;
-
-    conversations[convIndex] = {
-      ...conversations[convIndex],
-      ...updates,
-      updatedAt: new Date(),
-    };
-    
-    this.saveConversations(conversations);
+  async updateConversation(id: string, updates: Partial<Conversation>): Promise<void> {
+    try {
+      const response = await fetch(`/api/conversations/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) throw new Error("Failed to update conversation");
+    } catch (error) {
+      console.error("Error updating conversation:", error);
+      throw error;
+    }
   },
 };

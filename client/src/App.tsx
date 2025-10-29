@@ -43,9 +43,9 @@ function HomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadConversations = () => {
+  const loadConversations = async () => {
     try {
-      const convs = storage.getConversations();
+      const convs = await storage.getConversations();
       setConversations(convs);
       if (convs.length === 0) {
         // Show dialog for initial conversation
@@ -66,9 +66,9 @@ function HomePage() {
     setNewChatDialogOpen(true);
   };
 
-  const handleCreateChat = (model: AIModel, settings?: ModelSettings) => {
+  const handleCreateChat = async (model: AIModel, settings?: ModelSettings) => {
     try {
-      const newConv = storage.createConversation(model, settings);
+      const newConv = await storage.createConversation(model, settings);
       setConversations((prev) => [newConv, ...prev]);
       setSelectedConvId(newConv.id);
     } catch (error) {
@@ -76,9 +76,9 @@ function HomePage() {
     }
   };
 
-  const handleDeleteConversation = (id: string) => {
+  const handleDeleteConversation = async (id: string) => {
     try {
-      storage.deleteConversation(id);
+      await storage.deleteConversation(id);
       setConversations((prev) => prev.filter((c) => c.id !== id));
       if (selectedConvId === id && conversations.length > 1) {
         const remaining = conversations.filter((c) => c.id !== id);
@@ -89,19 +89,19 @@ function HomePage() {
     }
   };
 
-  const handleRenameConversation = (id: string, newTitle: string) => {
+  const handleRenameConversation = async (id: string, newTitle: string) => {
     try {
-      storage.updateConversation(id, { title: newTitle });
-      const convs = storage.getConversations();
+      await storage.updateConversation(id, { title: newTitle });
+      const convs = await storage.getConversations();
       setConversations(convs);
     } catch (error) {
       console.error("Error renaming conversation:", error);
     }
   };
 
-  const handleConversationUpdate = () => {
-    // Reload conversations from localStorage when messages are added
-    const convs = storage.getConversations();
+  const handleConversationUpdate = async () => {
+    // Reload conversations from API when messages are added
+    const convs = await storage.getConversations();
     setConversations(convs);
   };
 
@@ -109,19 +109,18 @@ function HomePage() {
     setImageGenOpen(true);
   };
 
-  const handleImageGenerated = (url: string) => {
+  const handleImageGenerated = async (url: string) => {
     if (!selectedConvId) return;
     // Send generated image as a message
     const conversation = conversations.find((c) => c.id === selectedConvId);
     if (conversation) {
       const userMessage = {
-        id: Date.now().toString(),
         role: "user" as const,
         content: [{ type: "image" as const, url }],
         timestamp: new Date(),
       };
-      storage.addMessage(selectedConvId, userMessage);
-      handleConversationUpdate();
+      await storage.addMessage(selectedConvId, userMessage);
+      await handleConversationUpdate();
     }
   };
 
