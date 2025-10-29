@@ -7,8 +7,9 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
 import Chat from "@/pages/Chat";
-import { useState } from "react";
-import { Conversation, AIModel, Message } from "@shared/schema";
+import { useState, useEffect } from "react";
+import { Conversation, AIModel } from "@shared/schema";
+import { getConversations, createConversation, deleteConversation } from "@/lib/api";
 
 function Router() {
   return (
@@ -20,42 +21,67 @@ function Router() {
 }
 
 function HomePage() {
-  // todo: remove mock functionality
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      title: "Новый чат",
-      messages: [],
-      model: "gpt-5",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ]);
-  const [selectedConvId, setSelectedConvId] = useState<string>("1");
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConvId, setSelectedConvId] = useState<string | undefined>();
   const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-5");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    loadConversations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadConversations = async () => {
+    try {
+      const convs = await getConversations();
+      setConversations(convs);
+      if (convs.length === 0) {
+        // Create initial conversation
+        await handleNewChat();
+      } else {
+        setSelectedConvId(convs[0].id);
+      }
+    } catch (error) {
+      console.error("Error loading conversations:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const selectedConversation = conversations.find((c) => c.id === selectedConvId);
 
-  const handleNewChat = () => {
-    const newConv: Conversation = {
-      id: Date.now().toString(),
-      title: "Новый чат",
-      messages: [],
-      model: selectedModel,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    setConversations((prev) => [newConv, ...prev]);
-    setSelectedConvId(newConv.id);
-  };
-
-  const handleDeleteConversation = (id: string) => {
-    setConversations((prev) => prev.filter((c) => c.id !== id));
-    if (selectedConvId === id && conversations.length > 1) {
-      const remaining = conversations.filter((c) => c.id !== id);
-      setSelectedConvId(remaining[0]?.id);
+  const handleNewChat = async () => {
+    try {
+      const newConv = await createConversation(selectedModel);
+      setConversations((prev) => [newConv, ...prev]);
+      setSelectedConvId(newConv.id);
+    } catch (error) {
+      console.error("Error creating conversation:", error);
     }
   };
+
+  const handleDeleteConversation = async (id: string) => {
+    try {
+      await deleteConversation(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (selectedConvId === id && conversations.length > 1) {
+        const remaining = conversations.filter((c) => c.id !== id);
+        setSelectedConvId(remaining[0]?.id);
+      }
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <div className="mb-4 text-muted-foreground">Загрузка...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-full">

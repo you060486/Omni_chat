@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/ChatMessage";
@@ -7,7 +7,8 @@ import { VoiceInput } from "@/components/VoiceInput";
 import { ImageGenerator } from "@/components/ImageGenerator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Message, AIModel, Conversation } from "@shared/schema";
-import { Bot } from "lucide-react";
+import { Bot, Loader2 } from "lucide-react";
+import { sendMessage } from "@/lib/api";
 
 interface ChatProps {
   conversation?: Conversation;
@@ -18,9 +19,30 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || []);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageGenOpen, setImageGenOpen] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const streamingTextRef = useRef<string>("");
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = (text: string, files?: File[], images?: string[]) => {
-    // todo: remove mock functionality
+  useEffect(() => {
+    if (conversation) {
+      setMessages(conversation.messages);
+      setStreamingText("");
+      streamingTextRef.current = "";
+      setIsStreaming(false);
+    }
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    // Auto-scroll to bottom when new messages arrive
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, streamingText]);
+
+  const handleSendMessage = async (text: string, files?: File[], images?: string[]) => {
+    if (!conversation) return;
+
     const userContent: any[] = [];
     
     if (text.trim()) {
@@ -41,23 +63,47 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    setIsStreaming(true);
+    setStreamingText("");
+    streamingTextRef.current = "";
 
-    // Имитация ответа AI
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: [
-          {
-            type: "text",
-            text: "Это демонстрационный ответ. В полной версии приложения здесь будет реальный ответ от выбранной AI модели.",
-          },
-        ],
-        model: selectedModel,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-    }, 1000);
+    await sendMessage({
+      conversationId: conversation.id,
+      content: userContent,
+      images,
+      files,
+      onChunk: (chunk) => {
+        streamingTextRef.current += chunk;
+        setStreamingText(streamingTextRef.current);
+      },
+      onDone: () => {
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: [{ type: "text", text: streamingTextRef.current }],
+          model: selectedModel,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+        setStreamingText("");
+        streamingTextRef.current = "";
+        setIsStreaming(false);
+      },
+      onError: (error) => {
+        console.error("Error sending message:", error);
+        setStreamingText("");
+        streamingTextRef.current = "";
+        setIsStreaming(false);
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: [{ type: "text", text: "Извините, произошла ошибка при обработке вашего запроса." }],
+          model: selectedModel,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      },
+    });
   };
 
   const handleVoiceTranscript = (text: string) => {
@@ -81,8 +127,8 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
         <ThemeToggle />
       </header>
 
-      <ScrollArea className="flex-1">
-        {messages.length === 0 ? (
+      <ScrollArea className="flex-1" ref={scrollRef}>
+        {messages.length === 0 && !isStreaming ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <Bot className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
@@ -99,6 +145,28 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
             {messages.map((message) => (
               <ChatMessage key={message.id} message={message} />
             ))}
+            {isStreaming && streamingText && (
+              <ChatMessage
+                message={{
+                  id: "streaming",
+                  role: "assistant",
+                  content: [{ type: "text", text: streamingText }],
+                  model: selectedModel,
+                  timestamp: new Date(),
+                }}
+              />
+            )}
+            {isStreaming && !streamingText && (
+              <div className="flex gap-4 px-6 py-6">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <Bot className="h-5 w-5" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Думаю...</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </ScrollArea>
@@ -107,6 +175,7 @@ export default function Chat({ conversation, selectedModel }: ChatProps) {
         onSendMessage={handleSendMessage}
         onVoiceClick={() => setVoiceOpen(true)}
         onImageGenClick={() => setImageGenOpen(true)}
+        disabled={isStreaming}
       />
 
       <VoiceInput

@@ -25,12 +25,28 @@ export function ImageGenerator({ open, onOpenChange, onImageGenerated }: ImageGe
     if (!prompt.trim()) return;
     
     setIsGenerating(true);
-    // todo: remove mock functionality
-    setTimeout(() => {
-      const mockImageUrl = `https://placehold.co/512x512/2563eb/ffffff?text=${encodeURIComponent(prompt.slice(0, 20))}`;
+    
+    try {
+      const response = await fetch("/api/generate-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate image");
+      }
+
+      const data = await response.json();
+      setGeneratedImage(data.imageUrl);
+    } catch (error) {
+      console.error("Error generating image:", error);
+      // Fallback to mock image in case of error
+      const mockImageUrl = `https://placehold.co/512x512/2563eb/ffffff?text=${encodeURIComponent("Error")}`;
       setGeneratedImage(mockImageUrl);
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   const handleUse = () => {
