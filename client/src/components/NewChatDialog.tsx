@@ -72,11 +72,25 @@ export function NewChatDialog({ open, onOpenChange, onSelectModel }: NewChatDial
   const [topP, setTopP] = useState(1);
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("medium");
 
-  // Fetch preset prompts
-  const { data: presets, isLoading } = useQuery<PresetPrompt[]>({
-    queryKey: ["/api/presets"],
+  // Fetch current user
+  const { data: currentUser } = useQuery<{ id: string; username: string }>({
+    queryKey: ["/api/user"],
+    enabled: open,
+  });
+
+  // Fetch approved presets (from admin)
+  const { data: approvedPresets, isLoading: isLoadingApproved } = useQuery<PresetPrompt[]>({
+    queryKey: ["/api/presets/approved"],
     enabled: open && viewMode === "presets",
   });
+
+  // Fetch user's own presets
+  const { data: userPresets, isLoading: isLoadingUser } = useQuery<PresetPrompt[]>({
+    queryKey: ["/api/presets/user", currentUser?.id],
+    enabled: open && viewMode === "presets" && !!currentUser?.id,
+  });
+
+  const isLoading = isLoadingApproved || isLoadingUser;
 
   const handleConfirm = () => {
     const settings: ModelSettings = {};
@@ -192,7 +206,7 @@ export function NewChatDialog({ open, onOpenChange, onSelectModel }: NewChatDial
         )}
 
         {viewMode === "presets" && (
-          <div className="space-y-3 py-4">
+          <div className="space-y-4 py-4">
             {isLoading ? (
               <>
                 {[1, 2, 3].map((i) => (
@@ -203,43 +217,111 @@ export function NewChatDialog({ open, onOpenChange, onSelectModel }: NewChatDial
                   </div>
                 ))}
               </>
-            ) : presets && presets.length > 0 ? (
-              presets.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => handlePresetSelect(preset)}
-                  className="w-full rounded-md border border-border p-4 text-left hover-elevate active-elevate-2 transition-all"
-                  data-testid={`button-preset-${preset.id}`}
-                >
-                  <div className="space-y-1">
-                    <h3 className="font-semibold">{preset.name}</h3>
-                    {preset.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {preset.description}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
-                      <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
-                      <span>•</span>
-                      <span>
-                        {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
-                      </span>
+            ) : (
+              <>
+                {/* Admin Presets Section */}
+                {approvedPresets && approvedPresets.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground px-1">
+                      От администратора
+                    </h3>
+                    <div className="space-y-2">
+                      {approvedPresets.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => handlePresetSelect(preset)}
+                          className="w-full rounded-md border border-border p-4 text-left hover-elevate active-elevate-2 transition-all"
+                          data-testid={`button-preset-${preset.id}`}
+                        >
+                          <div className="space-y-1">
+                            <h3 className="font-semibold">{preset.name}</h3>
+                            {preset.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {preset.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                              <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
+                              <span>•</span>
+                              <span>
+                                {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </button>
-              ))
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Нет доступных готовых решений</p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => setViewMode("manual")}
-                  data-testid="button-go-to-manual"
-                >
-                  Настроить самостоятельно
-                </Button>
-              </div>
+                )}
+
+                {/* User Presets Section */}
+                {userPresets && userPresets.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground px-1">
+                      Мои промпты
+                    </h3>
+                    <div className="space-y-2">
+                      {userPresets.map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => handlePresetSelect(preset)}
+                          className="w-full rounded-md border border-border p-4 text-left hover-elevate active-elevate-2 transition-all"
+                          data-testid={`button-user-preset-${preset.id}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold">{preset.name}</h3>
+                              {preset.status === "pending" && (
+                                <span className="text-xs px-2 py-0.5 rounded-md bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                                  На рассмотрении
+                                </span>
+                              )}
+                              {preset.status === "approved" && (
+                                <span className="text-xs px-2 py-0.5 rounded-md bg-green-500/10 text-green-600 dark:text-green-400">
+                                  Одобрено
+                                </span>
+                              )}
+                              {preset.status === "rejected" && (
+                                <span className="text-xs px-2 py-0.5 rounded-md bg-red-500/10 text-red-600 dark:text-red-400">
+                                  Отклонено
+                                </span>
+                              )}
+                            </div>
+                            {preset.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {preset.description}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-2">
+                              <span className="font-medium">{getModelLabel(preset.modelSettings)}</span>
+                              <span>•</span>
+                              <span>
+                                {format(new Date(preset.createdAt), "d MMMM yyyy", { locale: ru })}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {(!approvedPresets || approvedPresets.length === 0) &&
+                 (!userPresets || userPresets.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>Нет доступных готовых решений</p>
+                    <Button
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setViewMode("manual")}
+                      data-testid="button-go-to-manual"
+                    >
+                      Настроить самостоятельно
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
