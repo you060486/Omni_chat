@@ -1,4 +1,4 @@
-import { PlusCircle, Sparkles } from "lucide-react";
+import { PlusCircle, Sparkles, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -6,9 +6,11 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 import { ConversationList } from "./ConversationList";
 import { Conversation } from "@shared/schema";
+import { useAuth } from "@/hooks/use-auth";
 
 interface AppSidebarProps {
   conversations: Conversation[];
@@ -29,6 +31,12 @@ export function AppSidebar({
   onDeleteConversation,
   onRenameConversation,
 }: AppSidebarProps) {
+  const { user, logoutMutation } = useAuth();
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4 space-y-2">
@@ -63,6 +71,24 @@ export function AppSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="border-t p-4">
+        <div className="flex items-center gap-2 mb-2 px-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground" data-testid="text-username">
+            {user?.username}
+          </span>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={handleLogout}
+          disabled={logoutMutation.isPending}
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>{logoutMutation.isPending ? "Выход..." : "Выйти"}</span>
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
