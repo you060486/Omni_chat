@@ -38,6 +38,31 @@ export type InsertPresetPrompt = z.infer<typeof insertPresetPromptSchema>;
 export type UpdatePresetPrompt = z.infer<typeof updatePresetPromptSchema>;
 export type PresetPrompt = typeof presetPrompts.$inferSelect;
 
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  model: text("model").notNull().$type<AIModel>(),
+  settings: jsonb("settings").$type<ModelSettings>(),
+  messages: jsonb("messages").notNull().$type<Message[]>().default(sql`'[]'::jsonb`),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateConversationSchema = insertConversationSchema.partial().omit({
+  userId: true,
+});
+
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type UpdateConversation = z.infer<typeof updateConversationSchema>;
+export type ConversationDB = typeof conversations.$inferSelect;
+
 export type AIModel = "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini";
 
 export type ReasoningEffort = "low" | "medium" | "high";

@@ -2,6 +2,9 @@ import {
   type User, 
   type InsertUser, 
   type Conversation, 
+  type ConversationDB,
+  type InsertConversation,
+  type UpdateConversation,
   type Message, 
   type AIModel,
   type PresetPrompt,
@@ -10,26 +13,35 @@ import {
   type ModelSettings,
   users,
   presetPrompts,
+  conversations,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { db, pool } from "./db";
+import { eq, desc, and } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import createMemoryStore from "memorystore";
+
+const PostgresSessionStore = connectPg(session);
+const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
+  sessionStore: session.Store;
+  
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
   // Conversation management
-  getConversations(): Promise<Conversation[]>;
-  getConversation(id: string): Promise<Conversation | undefined>;
-  createConversation(model: AIModel, settings?: ModelSettings): Promise<Conversation>;
-  updateConversation(id: string, updates: Partial<Conversation>): Promise<Conversation>;
-  deleteConversation(id: string): Promise<void>;
+  getConversations(userId: string): Promise<Conversation[]>;
+  getConversation(id: string, userId: string): Promise<Conversation | undefined>;
+  createConversation(userId: string, model: AIModel, settings?: ModelSettings): Promise<Conversation>;
+  updateConversation(id: string, userId: string, updates: Partial<Conversation>): Promise<Conversation>;
+  deleteConversation(id: string, userId: string): Promise<void>;
   
   // Message management
-  addMessage(conversationId: string, message: Omit<Message, "id">): Promise<Message>;
-  getMessages(conversationId: string): Promise<Message[]>;
+  addMessage(conversationId: string, userId: string, message: Omit<Message, "id">): Promise<Message>;
+  getMessages(conversationId: string, userId: string): Promise<Message[]>;
   
   // Preset prompts management
   getPresetPrompts(): Promise<PresetPrompt[]>;
@@ -40,11 +52,13 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  sessionStore: session.Store;
   private users: Map<string, User>;
   private conversations: Map<string, Conversation>;
   private presetPrompts: Map<string, PresetPrompt>;
 
   constructor() {
+    this.sessionStore = new MemoryStore({ checkPeriod: 86400000 });
     this.users = new Map();
     this.conversations = new Map();
     this.presetPrompts = new Map();
@@ -67,21 +81,26 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  async getConversations(): Promise<Conversation[]> {
-    return Array.from(this.conversations.values()).sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-    );
+  async getConversations(userId: string): Promise<Conversation[]> {
+    return Array.from(this.conversations.values())
+      .filter(c => (c as any).userId === userId)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
   }
 
-  async getConversation(id: string): Promise<Conversation | undefined> {
-    return this.conversations.get(id);
+  async getConversation(id: string, userId: string): Promise<Conversation | undefined> {
+    const conv = this.conversations.get(id);
+    if (conv && (conv as any).userId === userId) {
+      return conv;
+    }
+    return undefined;
   }
 
-  async createConversation(model: AIModel, settings?: ModelSettings): Promise<Conversation> {
+  async createConversation(userId: string, model: AIModel, settings?: ModelSettings): Promise<Conversation> {
     const id = randomUUID();
     const now = new Date();
-    const conversation: Conversation = {
+    const conversation: any = {
       id,
+      userId,
       title: "Новый чат",
       messages: [],
       model,
@@ -93,9 +112,9 @@ export class MemStorage implements IStorage {
     return conversation;
   }
 
-  async updateConversation(id: string, updates: Partial<Conversation>): Promise<Conversation> {
+  async updateConversation(id: string, userId: string, updates: Partial<Conversation>): Promise<Conversation> {
     const conversation = this.conversations.get(id);
-    if (!conversation) {
+    if (!conversation || (conversation as any).userId !== userId) {
       throw new Error(`Conversation ${id} not found`);
     }
     const updated = {
@@ -107,13 +126,16 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
-  async deleteConversation(id: string): Promise<void> {
-    this.conversations.delete(id);
+  async deleteConversation(id: string, userId: string): Promise<void> {
+    const conversation = this.conversations.get(id);
+    if (conversation && (conversation as any).userId === userId) {
+      this.conversations.delete(id);
+    }
   }
 
-  async addMessage(conversationId: string, message: Omit<Message, "id">): Promise<Message> {
+  async addMessage(conversationId: string, userId: string, message: Omit<Message, "id">): Promise<Message> {
     const conversation = this.conversations.get(conversationId);
-    if (!conversation) {
+    if (!conversation || (conversation as any).userId !== userId) {
       throw new Error(`Conversation ${conversationId} not found`);
     }
 
@@ -125,7 +147,6 @@ export class MemStorage implements IStorage {
     conversation.messages.push(newMessage);
     conversation.updatedAt = new Date();
 
-    // Update title based on first user message
     if (conversation.messages.length === 1 && message.role === "user") {
       const textContent = message.content.find((c) => c.type === "text");
       if (textContent && textContent.type === "text") {
@@ -137,9 +158,12 @@ export class MemStorage implements IStorage {
     return newMessage;
   }
 
-  async getMessages(conversationId: string): Promise<Message[]> {
+  async getMessages(conversationId: string, userId: string): Promise<Message[]> {
     const conversation = this.conversations.get(conversationId);
-    return conversation?.messages || [];
+    if (conversation && (conversation as any).userId === userId) {
+      return conversation.messages || [];
+    }
+    return [];
   }
 
   async getPresetPrompts(): Promise<PresetPrompt[]> {
@@ -190,6 +214,12 @@ export class MemStorage implements IStorage {
 
 // DatabaseStorage implementation using Drizzle ORM
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({ pool, createTableIfMissing: true });
+  }
+
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -205,55 +235,102 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  // Conversation management (in-memory for now)
-  private conversations: Map<string, Conversation> = new Map();
-
-  async getConversations(): Promise<Conversation[]> {
-    return Array.from(this.conversations.values()).sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()
-    );
+  // Conversation management (PostgreSQL)
+  async getConversations(userId: string): Promise<Conversation[]> {
+    const dbConversations = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.userId, userId))
+      .orderBy(desc(conversations.updatedAt));
+    
+    return dbConversations.map(conv => ({
+      id: conv.id,
+      title: conv.title,
+      messages: conv.messages as Message[],
+      model: conv.model as AIModel,
+      settings: conv.settings as ModelSettings | undefined,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+    }));
   }
 
-  async getConversation(id: string): Promise<Conversation | undefined> {
-    return this.conversations.get(id);
-  }
-
-  async createConversation(model: AIModel, settings?: ModelSettings): Promise<Conversation> {
-    const id = randomUUID();
-    const now = new Date();
-    const conversation: Conversation = {
-      id,
-      title: "Новый чат",
-      messages: [],
-      model,
-      settings,
-      createdAt: now,
-      updatedAt: now,
+  async getConversation(id: string, userId: string): Promise<Conversation | undefined> {
+    const [conv] = await db
+      .select()
+      .from(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
+    
+    if (!conv) return undefined;
+    
+    return {
+      id: conv.id,
+      title: conv.title,
+      messages: conv.messages as Message[],
+      model: conv.model as AIModel,
+      settings: conv.settings as ModelSettings | undefined,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
     };
-    this.conversations.set(id, conversation);
-    return conversation;
   }
 
-  async updateConversation(id: string, updates: Partial<Conversation>): Promise<Conversation> {
-    const conversation = this.conversations.get(id);
-    if (!conversation) {
+  async createConversation(userId: string, model: AIModel, settings?: ModelSettings): Promise<Conversation> {
+    const [created] = await db
+      .insert(conversations)
+      .values({
+        userId,
+        title: "Новый чат",
+        model,
+        settings,
+        messages: [],
+      })
+      .returning();
+    
+    return {
+      id: created.id,
+      title: created.title,
+      messages: created.messages as Message[],
+      model: created.model as AIModel,
+      settings: created.settings as ModelSettings | undefined,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    };
+  }
+
+  async updateConversation(id: string, userId: string, updates: Partial<Conversation>): Promise<Conversation> {
+    const [updated] = await db
+      .update(conversations)
+      .set({
+        ...(updates.title && { title: updates.title }),
+        ...(updates.messages && { messages: updates.messages }),
+        ...(updates.settings !== undefined && { settings: updates.settings }),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)))
+      .returning();
+    
+    if (!updated) {
       throw new Error(`Conversation ${id} not found`);
     }
-    const updated = {
-      ...conversation,
-      ...updates,
-      updatedAt: new Date(),
+    
+    return {
+      id: updated.id,
+      title: updated.title,
+      messages: updated.messages as Message[],
+      model: updated.model as AIModel,
+      settings: updated.settings as ModelSettings | undefined,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
     };
-    this.conversations.set(id, updated);
-    return updated;
   }
 
-  async deleteConversation(id: string): Promise<void> {
-    this.conversations.delete(id);
+  async deleteConversation(id: string, userId: string): Promise<void> {
+    await db
+      .delete(conversations)
+      .where(and(eq(conversations.id, id), eq(conversations.userId, userId)));
   }
 
-  async addMessage(conversationId: string, message: Omit<Message, "id">): Promise<Message> {
-    const conversation = this.conversations.get(conversationId);
+  async addMessage(conversationId: string, userId: string, message: Omit<Message, "id">): Promise<Message> {
+    const conversation = await this.getConversation(conversationId, userId);
     if (!conversation) {
       throw new Error(`Conversation ${conversationId} not found`);
     }
@@ -263,22 +340,30 @@ export class DatabaseStorage implements IStorage {
       id: randomUUID(),
     };
 
-    conversation.messages.push(newMessage);
-    conversation.updatedAt = new Date();
+    const updatedMessages = [...conversation.messages, newMessage];
+    let title = conversation.title;
 
-    if (conversation.messages.length === 1 && message.role === "user") {
+    if (conversation.messages.length === 0 && message.role === "user") {
       const textContent = message.content.find((c) => c.type === "text");
       if (textContent && textContent.type === "text") {
-        conversation.title = textContent.text.slice(0, 50);
+        title = textContent.text.slice(0, 50);
       }
     }
 
-    this.conversations.set(conversationId, conversation);
+    await db
+      .update(conversations)
+      .set({
+        messages: updatedMessages,
+        title,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(conversations.id, conversationId), eq(conversations.userId, userId)));
+
     return newMessage;
   }
 
-  async getMessages(conversationId: string): Promise<Message[]> {
-    const conversation = this.conversations.get(conversationId);
+  async getMessages(conversationId: string, userId: string): Promise<Message[]> {
+    const conversation = await this.getConversation(conversationId, userId);
     return conversation?.messages || [];
   }
 
@@ -294,14 +379,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPresetPrompt(preset: InsertPresetPrompt): Promise<PresetPrompt> {
-    const [created] = await db.insert(presetPrompts).values(preset).returning();
+    const [created] = await db.insert(presetPrompts).values({
+      name: preset.name,
+      description: preset.description,
+      modelSettings: preset.modelSettings,
+    }).returning();
     return created;
   }
 
   async updatePresetPrompt(id: string, updates: UpdatePresetPrompt): Promise<PresetPrompt> {
+    const updateData: any = { updatedAt: new Date() };
+    if (updates.name) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.modelSettings) updateData.modelSettings = updates.modelSettings;
+
     const [updated] = await db
       .update(presetPrompts)
-      .set({ ...updates, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(presetPrompts.id, id))
       .returning();
     
