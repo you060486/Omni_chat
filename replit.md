@@ -1,202 +1,52 @@
 # AI Chat Application
 
-Полнофункциональное веб-приложение в стиле ChatGPT с поддержкой нескольких AI моделей, генерации изображений и мультимодального ввода.
+## Overview
+This project is a full-featured, ChatGPT-style web application providing a unified interface to various AI models, including advanced GPT versions, Google's Gemini, and a specialized STEM AI. It supports multimodal input (text, voice, image, files) and image generation. The application aims to offer a seamless and rich conversational AI experience with features like real-time streaming responses, web search integration, and comprehensive conversation history management. The business vision is to provide a versatile AI interaction platform, leveraging cutting-edge models for diverse user needs, from general conversation to specialized tasks and creative content generation.
 
-## Описание проекта
+## User Preferences
+- I prefer simple language.
+- I want iterative development.
+- Ask before making major changes.
+- I prefer detailed explanations.
+- Do not make changes to the folder `Z`.
+- Do not make changes to the file `Y`.
 
-Это современное AI чат-приложение, которое предоставляет пользователям доступ к различным моделям искусственного интеллекта через единый интерфейс с темной темой по умолчанию.
+## System Architecture
 
-## Основные возможности
+### UI/UX Decisions
+The application features a dark theme by default, with a toggle for a light theme. It uses Tailwind CSS for styling and Shadcn UI for pre-built components, ensuring a modern and responsive design. The input field dynamically expands up to 50% screen height on desktop and 70% on mobile. Chat management buttons (edit/delete) are always visible on mobile and appear on hover on desktop.
 
-### 1. Мультимодельная поддержка
-- **GPT-5** - самая умная модель OpenAI с конфигурируемым рассуждением (gpt-5-2025-08-07)
-- **GPT-5 Mini** - быстрая версия с балансом производительности (gpt-5-mini-2025-08-07)
-- **o3-mini** - специализация на STEM: математика, наука, код (o3-mini-2025-01-31)
-- **Gemini** - мультимодальная модель Google (Gemini 2.5 Pro)
+### Technical Implementations
+- **Frontend**: Built with React and TypeScript, using Wouter for routing and TanStack Query for server state management. React Markdown handles rendering AI responses.
+- **Backend**: An Express.js server integrates with various AI SDKs (OpenAI, Google Generative AI, Tavily) and handles file uploads via Multer, PDF parsing with PDF Parse, and database interactions with Drizzle ORM.
+- **AI Models**:
+    - OpenAI: GPT-5, GPT-5 Mini
+    - Google: Gemini (Gemini 2.5 Pro for chat, Gemini 2.5 Flash Image for generation)
+    - Specialized: o3-mini (for STEM, math, science, code)
+- **Multimodal Input**: Supports text, voice (Web Speech API), image uploads (vision capabilities), and file uploads (PDF, text).
+- **Image Generation**: Integrates Nano Banana (Google DeepMind's `gemini-2.5-flash-image`) for advanced image generation and editing directly within the chat.
+- **Web Search**: Integrates Tavily API for automatic, context-aware web searches to provide up-to-date information.
+- **Streaming Responses**: AI responses are streamed in real-time with typing animations.
+- **Conversation History**: Stored locally in `localStorage`, grouped by date, with options for renaming, deleting, and switching chats. Model settings are saved per conversation.
+- **Configurable Model Parameters**: Users can adjust system prompt, temperature, max tokens, and Top P. o3-mini also offers a "reasoning effort" setting. Settings are saved per conversation.
+- **Preset Prompts**: Global preset prompts stored in PostgreSQL, manageable via an admin panel with CRUD operations through a protected API.
 
-### 2. Генерация изображений
-- Генерация изображений через Nano Banana (Gemini 2.5 Flash Image)
-- Модель: `gemini-2.5-flash-image`
-- Передовая модель Google DeepMind для генерации и редактирования изображений
-- Поддержка консистентности персонажей, pixel-perfect редактирования и мультиизображений
-- Интеграция сгенерированных изображений в чат
+### Feature Specifications
+- **Hybrid Storage**: Conversations are stored locally in `localStorage` for device isolation, while global preset prompts are stored in PostgreSQL for cross-device synchronization.
+- **File Handling**: Images are converted to base64 for AI processing; text is extracted from PDFs and text files for context.
+- **Hotkeys**: Ctrl+Enter for sending messages, Enter for new lines.
 
-### 3. Мультимодальный ввод
-- **Текстовый ввод** - основной способ общения
-- **Голосовой ввод** - кнопка микрофона появляется когда поле ввода пустое (как в Telegram)
-  - Распознавание речи через Web Speech API
-  - Автоматически переключается на кнопку отправки при вводе текста
-- **Загрузка изображений** - анализ изображений с помощью vision capabilities
-- **Загрузка файлов** - обработка PDF и текстовых документов
+### System Design Choices
+- **File Structure**: Organized into `client/` (frontend), `server/` (backend), and `shared/` (common types/schemas) directories.
+- **API Endpoints**:
+    - `POST /api/chat`: For sending messages and receiving SSE streaming responses, supporting multipart/form-data.
+    - `POST /api/generate-image`: For generating images via Gemini Imagen.
+    - Preset Prompts API (`/api/presets`): GET, POST, PUT, DELETE operations, protected by an `x-admin-password` header.
 
-### 4. Веб-поиск
-- Автоматический поиск в интернете при необходимости
-- Интеграция с Tavily API для получения актуальной информации
-- AI сам решает, когда нужен поиск в интернете
-- Отображение процесса поиска пользователю
-
-### 5. Streaming ответов
-- Ответы AI отображаются в реальном времени
-- Плавная анимация печатания текста
-- Индикатор загрузки во время обработки
-
-### 6. История разговоров
-- Сохранение всех разговоров в памяти
-- Группировка по датам (Сегодня, Вчера, На этой неделе, Ранее)
-- Удобное переключение между разговорами
-- Выбор модели при создании нового чата
-
-### 7. Настраиваемые параметры моделей
-- **Системный промпт** - настройка поведения и стиля ответов AI
-- **Температура** (0-2) - контроль креативности ответов
-- **Максимум токенов** - ограничение длины ответа
-- **Top P** (0-1) - nucleus sampling для контроля разнообразия
-- **Усилие рассуждения** (для o3-mini) - выбор глубины анализа (low/medium/high)
-- Настройки сохраняются для каждого разговора
-- Расширенные настройки скрыты по умолчанию
-
-## Технический стек
-
-### Frontend
-- **React** с TypeScript
-- **Tailwind CSS** для стилизации
-- **Shadcn UI** - готовые компоненты
-- **React Markdown** - рендеринг markdown
-- **Wouter** - роутинг
-- **TanStack Query** - управление состоянием сервера
-
-### Backend
-- **Express.js** - веб-сервер
-- **OpenAI SDK** - интеграция с GPT моделями
-- **Google Generative AI SDK** - интеграция с Gemini
-- **Tavily SDK** - веб-поиск для AI агентов
-- **Multer** - обработка загрузки файлов
-- **PDF Parse** - парсинг PDF документов
-
-### Хранилище данных
-- **localStorage** - локальное хранение разговоров в браузере
-- Каждое устройство имеет изолированные данные
-- Нет синхронизации между устройствами
-
-## Архитектура
-
-### Структура файлов
-
-```
-client/
-  src/
-    components/
-      - ThemeProvider.tsx       # Управление темой
-      - ThemeToggle.tsx         # Переключатель темы
-      - NewChatDialog.tsx       # Диалог выбора модели при создании чата
-      - ChatMessage.tsx         # Компонент сообщения
-      - ChatInput.tsx           # Поле ввода с вложениями
-      - VoiceInput.tsx          # Голосовой ввод
-      - ImageGenerator.tsx      # Генерация изображений
-      - ConversationList.tsx    # Список разговоров
-      - AppSidebar.tsx          # Боковая панель
-      ui/                       # Shadcn UI компоненты
-    pages/
-      - Chat.tsx                # Главная страница чата
-    lib/
-      - api.ts                  # API клиент для AI чата
-      - storage.ts              # localStorage утилиты
-      - queryClient.ts          # TanStack Query настройка
-    App.tsx                     # Основное приложение
-    
-server/
-  - routes.ts                   # AI chat API endpoints
-  - index.ts                    # Express сервер
-  
-shared/
-  - schema.ts                   # Общие типы и схемы
-```
-
-### API Endpoints
-
-#### POST /api/chat
-Отправка сообщения к AI и получение streaming ответа
-- Поддерживает multipart/form-data для файлов
-- Возвращает SSE stream для реал-тайм ответов
-- Принимает: model, messages (история), content, images, files
-
-```json
-{
-  "model": "gpt-5" | "gpt-5-mini" | "o3-mini" | "gemini",
-  "messages": [...], // история сообщений
-  "content": [...],  // текущее сообщение
-  "images": [...],   // base64 изображения
-}
-```
-
-#### POST /api/generate-image
-Генерация изображения через Gemini Imagen
-```json
-{
-  "prompt": "описание изображения"
-}
-```
-
-## Переменные окружения
-
-Приложение требует следующие секреты:
-
-- `OPENAI_API_KEY` - API ключ OpenAI для доступа к GPT моделям
-- `GEMINI_API_KEY` - API ключ Google для Gemini и генерации изображений
-- `TAVILY_API_KEY` - API ключ Tavily для веб-поиска (1000 бесплатных запросов/месяц)
-- `SESSION_SECRET` - секрет для сессий (уже настроен)
-
-## Особенности реализации
-
-### Локальное хранилище
-- Все разговоры хранятся в localStorage браузера
-- Каждое устройство имеет свои изолированные данные
-- Нет синхронизации между устройствами
-- При первом запуске предлагается создать чат
-- Невозможно отправить сообщение без активного чата
-- Настройки моделей сохраняются вместе с разговором
-
-### Темная тема по умолчанию
-Приложение автоматически загружается в темной теме с возможностью переключения на светлую.
-
-### Динамическое расширение поля ввода
-Поле ввода автоматически расширяется при вводе текста:
-- До 50% высоты экрана на десктопе
-- До 70% высоты экрана на мобильных устройствах
-
-### Горячие клавиши
-- **Ctrl+Enter** - отправка сообщения
-- Обычный Enter создает новую строку
-
-### Обработка файлов
-- **Изображения** - конвертируются в base64 для отправки к AI
-- **PDF** - извлекается текст для анализа
-- **Текстовые файлы** - читаются и добавляются к контексту
-
-### Vision Capabilities
-Все модели поддерживают анализ изображений:
-- Загруженные пользователем изображения
-- Сгенерированные изображения
-- Изображения из интернета (через URL)
-
-## Запуск проекта
-
-Проект автоматически запускается через workflow "Start application", который выполняет:
-```bash
-npm run dev
-```
-
-Это запускает:
-- Express сервер на порту 5000
-- Vite dev server для frontend
-- Все на одном порту благодаря Vite middleware
-
-## Будущие улучшения
-
-- Персистентное хранилище (PostgreSQL)
-- Множественные чат-сессии с поиском
-- Экспорт разговоров в различных форматах
-- Расширенная поддержка файлов (Excel, архивы)
-- Авторизация пользователей
-- Sharing и публичные разговоры
-- Плагины и интеграции
+## External Dependencies
+- **OpenAI API**: For GPT models.
+- **Google Generative AI API**: For Gemini models and image generation.
+- **Tavily API**: For web search capabilities.
+- **PostgreSQL (Neon)**: For persistent storage of global preset prompts.
+- **React, Tailwind CSS, Shadcn UI, React Markdown, Wouter, TanStack Query**: Frontend libraries and frameworks.
+- **Express.js, OpenAI SDK, Google Generative AI SDK, Tavily SDK, Multer, PDF Parse, Drizzle ORM**: Backend libraries and tools.
