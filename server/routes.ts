@@ -539,7 +539,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { storage } = await import("./storage.js");
       const { insertPresetPromptSchema } = await import("@shared/schema");
       
-      const validatedData = insertPresetPromptSchema.parse(req.body);
+      // Admin-created presets get default status="admin"
+      const validatedData = insertPresetPromptSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+      });
       const preset = await storage.createPresetPrompt(validatedData);
       
       res.json(preset);
