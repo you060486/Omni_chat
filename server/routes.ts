@@ -416,6 +416,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preset prompts API
+  // Helper to check if user is admin
+  const isAdmin = (req: any) => {
+    return req.user?.username === "admin";
+  };
+
   // Get all preset prompts
   app.get("/api/presets", async (req, res) => {
     try {
@@ -448,8 +453,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create preset prompt (admin only)
   app.post("/api/presets", async (req, res) => {
     try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Требуется авторизация" });
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
       }
 
       const { storage } = await import("./storage.js");
@@ -468,8 +473,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update preset prompt (admin only)
   app.put("/api/presets/:id", async (req, res) => {
     try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Требуется авторизация" });
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
       }
 
       const { storage } = await import("./storage.js");
@@ -489,8 +494,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete preset prompt (admin only)
   app.delete("/api/presets/:id", async (req, res) => {
     try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Требуется авторизация" });
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
       }
 
       const { storage } = await import("./storage.js");
@@ -534,8 +539,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get pending presets (admin only)
   app.get("/api/presets/pending", async (req, res) => {
     try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Требуется авторизация" });
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
       }
 
       const { storage } = await import("./storage.js");
@@ -550,8 +555,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update preset status (admin only - approve/reject)
   app.patch("/api/presets/:id/status", async (req, res) => {
     try {
-      if (!req.session.userId) {
-        return res.status(401).json({ error: "Требуется авторизация" });
+      if (!isAdmin(req)) {
+        return res.status(403).json({ error: "Доступ запрещен. Только для администратора." });
       }
 
       const { status } = req.body;
