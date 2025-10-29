@@ -88,24 +88,25 @@ export function ConversationList({
                   {convs.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`group flex items-center gap-2 rounded-md px-3 py-2 hover-elevate ${
+                    className={`group flex items-center gap-2 rounded-md px-3 py-2 w-full hover-elevate ${
                       selectedId === conv.id ? "bg-sidebar-accent" : ""
                     }`}
                     data-testid={`conversation-${conv.id}`}
                   >
-                    <Button
-                      variant="ghost"
-                      className="h-auto min-w-0 flex-1 justify-start p-0 hover:bg-transparent overflow-hidden"
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer"
                       onClick={() => onSelect(conv.id)}
                     >
-                      <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
-                      <div className="flex flex-col items-start min-w-0 flex-1">
-                        <span className="truncate text-sm w-full">{conv.title}</span>
-                        <span className="text-xs text-muted-foreground truncate w-full">
-                          {formatDateTime(conv.createdAt)}
-                        </span>
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate text-sm">{conv.title}</span>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {formatDateTime(conv.createdAt)}
+                          </span>
+                        </div>
                       </div>
-                    </Button>
+                    </div>
                     <div className="flex gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                       {onRename && (
                         <Button
