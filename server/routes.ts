@@ -288,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate image using Gemini Imagen
+  // Generate image using OpenAI DALL-E
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt } = req.body;
@@ -297,24 +297,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      const model = genAI.getGenerativeModel({ model: "imagen-3.0-generate-001" });
-      
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      const response = await openai.images.generate({
+        model: "dall-e-3",
+        prompt: prompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
       });
 
-      // Extract image data from response
-      const response = result.response;
-      const imageData = response.candidates?.[0]?.content?.parts?.[0];
+      const imageUrl = response.data[0]?.url;
       
-      if (imageData && "inlineData" in imageData) {
-        const base64Image = imageData.inlineData?.data;
-        const mimeType = imageData.inlineData?.mimeType || "image/png";
-        const dataUrl = `data:${mimeType};base64,${base64Image}`;
-        
-        res.json({ imageUrl: dataUrl });
+      if (imageUrl) {
+        res.json({ imageUrl });
       } else {
-        throw new Error("No image data in response");
+        throw new Error("No image URL in response");
       }
     } catch (error) {
       console.error("Error generating image:", error);

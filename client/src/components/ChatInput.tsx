@@ -175,13 +175,6 @@ export function ChatInput({
                 <span>Приложить файл</span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={onVoiceClick}
-                data-testid="menu-voice-input"
-              >
-                <Mic className="mr-2 h-4 w-4" />
-                <span>Голосовой ввод</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
                 onClick={onImageGenClick}
                 data-testid="menu-generate-image"
               >
@@ -203,14 +196,26 @@ export function ChatInput({
             data-testid="input-message"
           />
 
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={disabled || (!message.trim() && attachedFiles.length === 0 && attachedImages.length === 0)}
-            data-testid="button-send-message"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          {message.trim() || attachedFiles.length > 0 || attachedImages.length > 0 ? (
+            <Button
+              size="icon"
+              onClick={handleSend}
+              disabled={disabled}
+              data-testid="button-send-message"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onVoiceClick}
+              disabled={disabled}
+              data-testid="button-voice-input"
+            >
+              <Mic className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <p className="mt-2 text-center text-xs text-muted-foreground hidden md:block">
