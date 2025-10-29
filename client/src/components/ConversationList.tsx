@@ -95,23 +95,23 @@ export function ConversationList({
                   >
                     <Button
                       variant="ghost"
-                      className="h-auto flex-1 justify-start p-0 hover:bg-transparent"
+                      className="h-auto min-w-0 flex-1 justify-start p-0 hover:bg-transparent overflow-hidden"
                       onClick={() => onSelect(conv.id)}
                     >
                       <MessageSquare className="mr-2 h-4 w-4 shrink-0" />
-                      <div className="flex flex-col items-start flex-1 min-w-0">
+                      <div className="flex flex-col items-start min-w-0 flex-1">
                         <span className="truncate text-sm w-full">{conv.title}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground truncate w-full">
                           {formatDateTime(conv.createdAt)}
                         </span>
                       </div>
                     </Button>
-                    <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                    <div className="flex gap-1 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                       {onRename && (
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8"
+                          className="h-8 w-8 shrink-0"
                           onClick={(e) => {
                             e.stopPropagation();
                             setEditingId(conv.id);
@@ -125,7 +125,7 @@ export function ConversationList({
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-8 w-8 shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDelete(conv.id);
