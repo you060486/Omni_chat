@@ -20,10 +20,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
 
   return (
     <div
-      className={`group flex gap-4 px-6 py-6 ${isUser ? "ml-auto max-w-3xl" : "mr-auto max-w-3xl"}`}
+      className={`group flex gap-4 px-6 py-6 ${
+        isUser 
+          ? "flex-row-reverse bg-muted/30" 
+          : ""
+      }`}
       data-testid={`message-${message.role}`}
     >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+        isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+      }`}>
         {isUser ? (
           <User className="h-5 w-5" />
         ) : (
@@ -31,7 +37,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
       </div>
 
-      <div className="flex-1 space-y-3">
+      <div className="flex-1 space-y-3 max-w-3xl">
         {message.content.map((content, idx) => (
           <div key={idx}>
             {content.type === "text" ? (
