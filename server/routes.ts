@@ -16,15 +16,34 @@ const upload = multer({
   }
 });
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI | null = null;
+let genAI: GoogleGenerativeAI | null = null;
+let tavilyClient: ReturnType<typeof tavily> | null = null;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+function getOpenAI() {
+  if (!openai && process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
-const tavilyClient = tavily({ 
-  apiKey: process.env.TAVILY_API_KEY || ""
-});
+function getGenAI() {
+  if (!genAI && process.env.GEMINI_API_KEY) {
+    genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  }
+  return genAI;
+}
+
+function getTavilyClient() {
+  if (!tavilyClient && process.env.TAVILY_API_KEY) {
+    tavilyClient = tavily({ 
+      apiKey: process.env.TAVILY_API_KEY
+    });
+  }
+  return tavilyClient;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes
@@ -94,6 +113,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       try {
         if (model === "gemini") {
+          const geminiClient = getGenAI();
+          if (!geminiClient) {
+            throw new Error("Gemini API key not configured");
+          }
+          
           // Gemini model with settings
           const modelConfig: any = { model: "gemini-2.5-pro" };
           
@@ -102,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             modelConfig.systemInstruction = systemPrompt;
           }
           
-          const geminiModel = genAI.getGenerativeModel(modelConfig);
+          const geminiModel = geminiClient.getGenerativeModel(modelConfig);
           
           // Convert message history to Gemini format  
           const chatHistory = messages.map((msg: any) => {
@@ -224,7 +248,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             apiParams.reasoning_effort = reasoningEffort;
           }
           
-          const stream = await openai.chat.completions.create(apiParams);
+          const openaiClient = getOpenAI();
+          if (!openaiClient) {
+            throw new Error("OpenAI API key not configured");
+          }
+          
+          const stream = await openaiClient.chat.completions.create(apiParams);
 
           let toolCalls: any[] = [];
           let currentToolCall: any = null;
@@ -273,11 +302,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (toolCall.function.name === "web_search") {
                 const args = JSON.parse(toolCall.function.arguments);
                 
+                const tavilyClientInstance = getTavilyClient();
+                if (!tavilyClientInstance) {
+                  throw new Error("Tavily API key not configured");
+                }
+                
                 // Notify user about search
                 res.write(`data: ${JSON.stringify({ content: `\n\n🔍 Поиск в интернете: "${args.query}"\n\n` })}\n\n`);
                 
                 // Execute search
-                const searchResult = await tavilyClient.search(args.query, {
+                const searchResult = await tavilyClientInstance.search(args.query, {
                   searchDepth: "advanced",
                   maxResults: 5,
                   includeAnswer: true,
@@ -304,7 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 });
 
                 // Continue conversation with search results
-                const followUpStream = await openai.chat.completions.create({
+                const followUpStream = await openaiClient.chat.completions.create({
                   model: modelMap[model] || "gpt-5-2025-08-07",
                   messages: openaiMessages,
                   stream: true,
@@ -352,7 +386,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Prompt is required" });
       }
 
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image" });
+      const geminiClient = getGenAI();
+      if (!geminiClient) {
+        return res.status(500).json({ error: "Gemini API key not configured" });
+      }
+
+      const model = geminiClient.getGenerativeModel({ model: "gemini-2.5-flash-image" });
       
       const result = await model.generateContent(prompt);
       const response = result.response;
