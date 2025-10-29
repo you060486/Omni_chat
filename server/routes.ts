@@ -372,6 +372,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Preset prompts API
+  const verifyAdminPassword = (password: string) => {
+    return password === process.env.ADMIN_PASSWORD;
+  };
+
+  // Get all preset prompts
+  app.get("/api/presets", async (req, res) => {
+    try {
+      const { storage } = await import("./storage.js");
+      const presets = await storage.getPresetPrompts();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching presets:", error);
+      res.status(500).json({ error: "Failed to fetch presets" });
+    }
+  });
+
+  // Get single preset prompt
+  app.get("/api/presets/:id", async (req, res) => {
+    try {
+      const { storage } = await import("./storage.js");
+      const preset = await storage.getPresetPrompt(req.params.id);
+      
+      if (!preset) {
+        return res.status(404).json({ error: "Preset not found" });
+      }
+      
+      res.json(preset);
+    } catch (error) {
+      console.error("Error fetching preset:", error);
+      res.status(500).json({ error: "Failed to fetch preset" });
+    }
+  });
+
+  // Create preset prompt (admin only)
+  app.post("/api/presets", async (req, res) => {
+    try {
+      const { password, ...presetData } = req.body;
+      
+      if (!verifyAdminPassword(password)) {
+        return res.status(401).json({ error: "Неверный пароль администратора" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const { insertPresetPromptSchema } = await import("@shared/schema");
+      
+      const validatedData = insertPresetPromptSchema.parse(presetData);
+      const preset = await storage.createPresetPrompt(validatedData);
+      
+      res.json(preset);
+    } catch (error) {
+      console.error("Error creating preset:", error);
+      res.status(500).json({ error: "Failed to create preset" });
+    }
+  });
+
+  // Update preset prompt (admin only)
+  app.put("/api/presets/:id", async (req, res) => {
+    try {
+      const { password, ...updates } = req.body;
+      
+      if (!verifyAdminPassword(password)) {
+        return res.status(401).json({ error: "Неверный пароль администратора" });
+      }
+
+      const { storage } = await import("./storage.js");
+      const { updatePresetPromptSchema } = await import("@shared/schema");
+      
+      const validatedUpdates = updatePresetPromptSchema.parse(updates);
+      const preset = await storage.updatePresetPrompt(req.params.id, validatedUpdates);
+      
+      res.json(preset);
+    } catch (error) {
+      console.error("Error updating preset:", error);
+      res.status(500).json({ error: "Failed to update preset" });
+    }
+  });
+
+  // Delete preset prompt (admin only)
+  app.delete("/api/presets/:id", async (req, res) => {
+    try {
+      const { password } = req.body;
+      
+      if (!verifyAdminPassword(password)) {
+        return res.status(401).json({ error: "Неверный пароль администратора" });
+      }
+
+      const { storage } = await import("./storage.js");
+      await storage.deletePresetPrompt(req.params.id);
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting preset:", error);
+      res.status(500).json({ error: "Failed to delete preset" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
