@@ -72,7 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         if (model === "gemini") {
           // Gemini model
-          const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
           
           // Convert message history to Gemini format  
           const chatHistory = messages.map((msg: any) => {

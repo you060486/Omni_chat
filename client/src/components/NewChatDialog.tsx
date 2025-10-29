@@ -35,7 +35,7 @@ const models: { value: AIModel; label: string; description: string }[] = [
   {
     value: "gemini",
     label: "Gemini",
-    description: "Мультимодальная модель Google (Gemini 2.0 Flash Exp)",
+    description: "Мультимодальная модель Google (Gemini 2.5 Pro)",
   },
 ];
 
