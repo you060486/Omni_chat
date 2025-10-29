@@ -14,7 +14,11 @@ This project is a full-featured, ChatGPT-style web application providing a unifi
 ## System Architecture
 
 ### UI/UX Decisions
-The application features a dark theme by default, with a toggle for a light theme. It uses Tailwind CSS for styling and Shadcn UI for pre-built components, ensuring a modern and responsive design. The input field dynamically expands up to 50% screen height on desktop and 70% on mobile. Chat management buttons (edit/delete) are always visible on mobile and appear on hover on desktop.
+The application features a dark theme by default, with a toggle for a light theme. It uses Tailwind CSS for styling and Shadcn UI for pre-built components, ensuring a modern and responsive design. The input field dynamically expands up to 50% screen height on desktop and 70% on mobile. 
+
+**Conversation List UX**: Each conversation row in the sidebar features a flex layout where the text container (icon + title + timestamp) uses `flex-1 min-w-0` to allow truncation when space is limited, while the action buttons (edit/delete) occupy a fixed 64px width with `shrink-0` to guarantee visibility. The entire row is clickable for navigation, with buttons preventing event propagation. On mobile, action buttons are always visible; on desktop (≥768px), they appear only on hover. User messages display on the right with a light background (`bg-muted/30`) and blue avatar, while AI messages appear on the left without background and a muted avatar.
+
+**Auth Page Layout**: The authentication page uses a centered flex layout (`items-center justify-center`) to ensure the login/signup form remains properly centered on mobile devices.
 
 ### Technical Implementations
 - **Frontend**: Built with React and TypeScript, using Wouter for routing and TanStack Query for server state management. React Markdown handles rendering AI responses.
