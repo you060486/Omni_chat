@@ -131,7 +131,7 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex items-end gap-2">
           <input
             ref={imageInputRef}
             type="file"
@@ -191,31 +191,29 @@ export function ChatInput({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="relative flex-1">
-            <Textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Введите сообщение... (Ctrl+Enter для отправки)"
-              className="min-h-[3rem] resize-none pr-12 overflow-hidden"
-              style={{ maxHeight: typeof window !== 'undefined' && window.innerWidth < 768 ? '70vh' : '50vh' }}
-              disabled={disabled}
-              data-testid="input-message"
-            />
-            <Button
-              size="icon"
-              className="absolute bottom-2 right-2 h-8 w-8"
-              onClick={handleSend}
-              disabled={disabled || (!message.trim() && attachedFiles.length === 0 && attachedImages.length === 0)}
-              data-testid="button-send-message"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
+          <Textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Введите сообщение..."
+            className="min-h-[3rem] resize-none overflow-hidden flex-1"
+            style={{ maxHeight: typeof window !== 'undefined' && window.innerWidth < 768 ? '70vh' : '50vh' }}
+            disabled={disabled}
+            data-testid="input-message"
+          />
+
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={disabled || (!message.trim() && attachedFiles.length === 0 && attachedImages.length === 0)}
+            data-testid="button-send-message"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
         </div>
 
-        <p className="mt-2 text-center text-xs text-muted-foreground">
+        <p className="mt-2 text-center text-xs text-muted-foreground hidden md:block">
           Ctrl+Enter для отправки
         </p>
       </div>
