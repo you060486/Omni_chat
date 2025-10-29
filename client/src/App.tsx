@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
+import { NewChatDialog } from "@/components/NewChatDialog";
 import Chat from "@/pages/Chat";
 import { useState, useEffect } from "react";
 import { Conversation, AIModel } from "@shared/schema";
@@ -23,8 +24,8 @@ function Router() {
 function HomePage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConvId, setSelectedConvId] = useState<string | undefined>();
-  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-5");
   const [isLoading, setIsLoading] = useState(true);
+  const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
 
   useEffect(() => {
     loadConversations();
@@ -36,8 +37,8 @@ function HomePage() {
       const convs = await getConversations();
       setConversations(convs);
       if (convs.length === 0) {
-        // Create initial conversation
-        await handleNewChat();
+        // Show dialog for initial conversation
+        setNewChatDialogOpen(true);
       } else {
         setSelectedConvId(convs[0].id);
       }
@@ -50,9 +51,13 @@ function HomePage() {
 
   const selectedConversation = conversations.find((c) => c.id === selectedConvId);
 
-  const handleNewChat = async () => {
+  const handleNewChatClick = () => {
+    setNewChatDialogOpen(true);
+  };
+
+  const handleCreateChat = async (model: AIModel) => {
     try {
-      const newConv = await createConversation(selectedModel);
+      const newConv = await createConversation(model);
       setConversations((prev) => [newConv, ...prev]);
       setSelectedConvId(newConv.id);
     } catch (error) {
@@ -84,23 +89,28 @@ function HomePage() {
   }
 
   return (
-    <div className="flex h-screen w-full">
-      <AppSidebar
-        conversations={conversations}
-        selectedConversation={selectedConvId}
-        selectedModel={selectedModel}
-        onNewChat={handleNewChat}
-        onSelectConversation={setSelectedConvId}
-        onDeleteConversation={handleDeleteConversation}
-        onModelChange={setSelectedModel}
-      />
-      <div className="flex-1">
-        <Chat
-          conversation={selectedConversation}
-          selectedModel={selectedModel}
+    <>
+      <div className="flex h-screen w-full">
+        <AppSidebar
+          conversations={conversations}
+          selectedConversation={selectedConvId}
+          onNewChat={handleNewChatClick}
+          onSelectConversation={setSelectedConvId}
+          onDeleteConversation={handleDeleteConversation}
         />
+        <div className="flex-1">
+          <Chat
+            conversation={selectedConversation}
+            selectedModel={selectedConversation?.model || "gpt-5"}
+          />
+        </div>
       </div>
-    </div>
+      <NewChatDialog
+        open={newChatDialogOpen}
+        onOpenChange={setNewChatDialogOpen}
+        onSelectModel={handleCreateChat}
+      />
+    </>
   );
 }
 
