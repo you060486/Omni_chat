@@ -17,11 +17,15 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export type PresetPromptStatus = "admin" | "approved" | "pending" | "rejected";
+
 export const presetPrompts = pgTable("preset_prompts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   modelSettings: jsonb("model_settings").notNull().$type<ModelSettings>(),
+  status: text("status").notNull().$type<PresetPromptStatus>().default("admin"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -30,6 +34,8 @@ export const insertPresetPromptSchema = createInsertSchema(presetPrompts).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  status: z.enum(["admin", "approved", "pending", "rejected"]).optional(),
 });
 
 export const updatePresetPromptSchema = insertPresetPromptSchema.partial();

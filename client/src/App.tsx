@@ -12,6 +12,7 @@ import { NewChatDialog } from "@/components/NewChatDialog";
 import { ImageGenerator } from "@/components/ImageGenerator";
 import AuthPage from "@/pages/AuthPage";
 import Chat from "@/pages/Chat";
+import AdminPanel from "@/pages/AdminPanel";
 import { useState, useEffect, useRef } from "react";
 import { Conversation, AIModel, ModelSettings } from "@shared/schema";
 import { storage } from "@/lib/storage";
@@ -20,6 +21,7 @@ function Router() {
   return (
     <Switch>
       <ProtectedRoute path="/" component={HomePage} />
+      <ProtectedRoute path="/admin" component={AdminPanel} />
       <Route path="/auth" component={AuthPage} />
     </Switch>
   );
