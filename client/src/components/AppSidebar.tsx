@@ -1,4 +1,4 @@
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
@@ -14,6 +14,7 @@ interface AppSidebarProps {
   conversations: Conversation[];
   selectedConversation?: string;
   onNewChat: () => void;
+  onImageGen: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
   onRenameConversation?: (id: string, newTitle: string) => void;
@@ -23,13 +24,14 @@ export function AppSidebar({
   conversations,
   selectedConversation,
   onNewChat,
+  onImageGen,
   onSelectConversation,
   onDeleteConversation,
   onRenameConversation,
 }: AppSidebarProps) {
   return (
     <Sidebar>
-      <SidebarHeader className="border-b p-4">
+      <SidebarHeader className="border-b p-4 space-y-2">
         <Button
           className="w-full justify-start gap-2"
           onClick={onNewChat}
@@ -37,6 +39,15 @@ export function AppSidebar({
         >
           <PlusCircle className="h-5 w-5" />
           <span>Новый чат</span>
+        </Button>
+        <Button
+          className="w-full justify-start gap-2"
+          variant="secondary"
+          onClick={onImageGen}
+          data-testid="button-image-generation"
+        >
+          <Sparkles className="h-5 w-5" />
+          <span>Генерация изображения</span>
         </Button>
       </SidebarHeader>
       <SidebarContent>

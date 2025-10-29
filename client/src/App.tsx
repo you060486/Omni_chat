@@ -3,12 +3,13 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppSidebar } from "@/components/AppSidebar";
 import { NewChatDialog } from "@/components/NewChatDialog";
+import { ImageGenerator } from "@/components/ImageGenerator";
 import Chat from "@/pages/Chat";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Conversation, AIModel, ModelSettings } from "@shared/schema";
 import { storage } from "@/lib/storage";
 
@@ -26,6 +27,11 @@ function HomePage() {
   const [selectedConvId, setSelectedConvId] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [newChatDialogOpen, setNewChatDialogOpen] = useState(false);
+  const [imageGenOpen, setImageGenOpen] = useState(false);
+  const { setOpenMobile, openMobile } = useSidebar();
+  const touchStartX = useRef<number>(0);
+  const touchStartY = useRef<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConversations();
@@ -94,6 +100,72 @@ function HomePage() {
     setConversations(convs);
   };
 
+  const handleImageGenClick = () => {
+    setImageGenOpen(true);
+  };
+
+  const handleImageGenerated = (url: string) => {
+    if (!selectedConvId) return;
+    // Send generated image as a message
+    const conversation = conversations.find((c) => c.id === selectedConvId);
+    if (conversation) {
+      const userMessage = {
+        id: Date.now().toString(),
+        role: "user" as const,
+        content: [{ type: "image" as const, url }],
+        timestamp: new Date(),
+      };
+      storage.addMessage(selectedConvId, userMessage);
+      handleConversationUpdate();
+    }
+  };
+
+  // Touch event handlers for swipe from edge
+  useEffect(() => {
+    const handleTouchStart = (e: TouchEvent) => {
+      // Only activate swipe if sidebar is closed
+      if (openMobile) return;
+      
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchStartX.current || openMobile) return;
+      
+      const touchX = e.touches[0].clientX;
+      const touchY = e.touches[0].clientY;
+      const deltaX = touchX - touchStartX.current;
+      const deltaY = touchY - touchStartY.current;
+      
+      // Check if swipe started from left edge (within 20px)
+      if (touchStartX.current < 20 && deltaX > 50 && Math.abs(deltaY) < 100) {
+        setOpenMobile(true);
+        touchStartX.current = 0;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      touchStartX.current = 0;
+      touchStartY.current = 0;
+    };
+
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('touchstart', handleTouchStart);
+      container.addEventListener('touchmove', handleTouchMove);
+      container.addEventListener('touchend', handleTouchEnd);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchmove', handleTouchMove);
+        container.removeEventListener('touchend', handleTouchEnd);
+      }
+    };
+  }, [setOpenMobile, openMobile]);
+
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -106,20 +178,22 @@ function HomePage() {
 
   return (
     <>
-      <div className="flex h-screen w-full">
+      <div className="flex h-screen w-full overflow-hidden" ref={containerRef}>
         <AppSidebar
           conversations={conversations}
           selectedConversation={selectedConvId}
           onNewChat={handleNewChatClick}
+          onImageGen={handleImageGenClick}
           onSelectConversation={setSelectedConvId}
           onDeleteConversation={handleDeleteConversation}
           onRenameConversation={handleRenameConversation}
         />
-        <div className="flex-1">
+        <div className="flex-1 overflow-hidden">
           <Chat
             conversation={selectedConversation}
             selectedModel={selectedConversation?.model || "gpt-5"}
             onConversationUpdate={handleConversationUpdate}
+            onImageGenerated={handleImageGenerated}
           />
         </div>
       </div>
@@ -127,6 +201,11 @@ function HomePage() {
         open={newChatDialogOpen}
         onOpenChange={setNewChatDialogOpen}
         onSelectModel={handleCreateChat}
+      />
+      <ImageGenerator
+        open={imageGenOpen}
+        onOpenChange={setImageGenOpen}
+        onImageGenerated={handleImageGenerated}
       />
     </>
   );

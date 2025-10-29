@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { VoiceInput } from "@/components/VoiceInput";
-import { ImageGenerator } from "@/components/ImageGenerator";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Message, AIModel, Conversation } from "@shared/schema";
 import { Bot, Loader2 } from "lucide-react";
@@ -15,12 +13,12 @@ interface ChatProps {
   conversation?: Conversation;
   selectedModel: AIModel;
   onConversationUpdate: () => void;
+  onImageGenerated?: (url: string) => void;
 }
 
-export default function Chat({ conversation, selectedModel, onConversationUpdate }: ChatProps) {
+export default function Chat({ conversation, selectedModel, onConversationUpdate, onImageGenerated }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || []);
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const [imageGenOpen, setImageGenOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const streamingTextRef = useRef<string>("");
@@ -33,12 +31,13 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
       streamingTextRef.current = "";
       setIsStreaming(false);
     }
-  }, [conversation?.id]);
+  }, [conversation?.id, conversation?.messages]);
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const scrollContainer = scrollRef.current;
+    if (scrollContainer) {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   }, [messages, streamingText]);
 
@@ -127,13 +126,9 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
     handleSendMessage(text);
   };
 
-  const handleImageGenerated = (url: string) => {
-    handleSendMessage("", undefined, [url]);
-  };
-
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex h-14 items-center justify-between border-b px-4">
+    <div className="flex h-full flex-col overflow-hidden">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
         <div className="flex items-center gap-3">
           <SidebarTrigger data-testid="button-sidebar-toggle" />
           <div className="flex items-center gap-2">
@@ -144,7 +139,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         <ThemeToggle />
       </header>
 
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto" ref={scrollRef}>
         {messages.length === 0 && !isStreaming ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
@@ -186,12 +181,11 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
             )}
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       <ChatInput
         onSendMessage={handleSendMessage}
         onVoiceClick={() => setVoiceOpen(true)}
-        onImageGenClick={() => setImageGenOpen(true)}
         disabled={isStreaming || !conversation}
       />
 
@@ -199,12 +193,6 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         open={voiceOpen}
         onOpenChange={setVoiceOpen}
         onTranscript={handleVoiceTranscript}
-      />
-
-      <ImageGenerator
-        open={imageGenOpen}
-        onOpenChange={setImageGenOpen}
-        onImageGenerated={handleImageGenerated}
       />
     </div>
   );

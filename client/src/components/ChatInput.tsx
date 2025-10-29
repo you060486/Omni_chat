@@ -1,25 +1,17 @@
-import { Send, Paperclip, Mic, Image as ImageIcon, X, MoreVertical, Sparkles } from "lucide-react";
+import { Send, Paperclip, Mic, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useState, useRef, KeyboardEvent, useEffect } from "react";
 
 interface ChatInputProps {
   onSendMessage: (text: string, files?: File[], images?: string[]) => void;
   onVoiceClick: () => void;
-  onImageGenClick: () => void;
   disabled?: boolean;
 }
 
 export function ChatInput({
   onSendMessage,
   onVoiceClick,
-  onImageGenClick,
   disabled,
 }: ChatInputProps) {
   const [message, setMessage] = useState("");
@@ -27,7 +19,6 @@ export function ChatInput({
   const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -60,22 +51,9 @@ export function ChatInput({
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setAttachedFiles((prev) => [...prev, ...files]);
-  };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setAttachedImages((prev) => [...prev, e.target!.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+  const handleAttachClick = () => {
+    fileInputRef.current?.click();
   };
 
   const removeFile = (index: number) => {
@@ -87,7 +65,7 @@ export function ChatInput({
   };
 
   return (
-    <div className="sticky bottom-0 border-t bg-background px-6 py-4">
+    <div className="shrink-0 border-t bg-background px-6 py-4">
       <div className="mx-auto max-w-3xl">
         {(attachedFiles.length > 0 || attachedImages.length > 0) && (
           <div className="mb-3 flex flex-wrap gap-2">
@@ -133,56 +111,51 @@ export function ChatInput({
 
         <div className="flex items-end gap-2">
           <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-          <input
             ref={fileInputRef}
             type="file"
+            accept="image/*,.pdf,.txt,.doc,.docx"
             multiple
             className="hidden"
-            onChange={handleFileSelect}
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              const imageFiles: File[] = [];
+              const otherFiles: File[] = [];
+              
+              files.forEach((file) => {
+                if (file.type.startsWith('image/')) {
+                  imageFiles.push(file);
+                } else {
+                  otherFiles.push(file);
+                }
+              });
+              
+              if (imageFiles.length > 0) {
+                imageFiles.forEach((file) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    if (e.target?.result) {
+                      setAttachedImages((prev) => [...prev, e.target!.result as string]);
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                });
+              }
+              
+              if (otherFiles.length > 0) {
+                setAttachedFiles((prev) => [...prev, ...otherFiles]);
+              }
+            }}
           />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                disabled={disabled}
-                data-testid="button-attachment-menu"
-              >
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              <DropdownMenuItem
-                onClick={() => imageInputRef.current?.click()}
-                data-testid="menu-upload-image"
-              >
-                <ImageIcon className="mr-2 h-4 w-4" />
-                <span>Загрузить изображение</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => fileInputRef.current?.click()}
-                data-testid="menu-upload-file"
-              >
-                <Paperclip className="mr-2 h-4 w-4" />
-                <span>Приложить файл</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={onImageGenClick}
-                data-testid="menu-generate-image"
-              >
-                <Sparkles className="mr-2 h-4 w-4" />
-                <span>Создать изображение</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={handleAttachClick}
+            disabled={disabled}
+            data-testid="button-attach"
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
 
           <Textarea
             ref={textareaRef}
