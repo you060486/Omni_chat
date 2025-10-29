@@ -63,6 +63,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         topP = 1,
         reasoningEffort = "medium"
       } = settings || {};
+      
+      console.log("[Chat API] Settings received:", { systemPrompt, temperature, maxTokens, topP, reasoningEffort });
 
       // Process uploaded files
       const processedContent = [...(content || [])];

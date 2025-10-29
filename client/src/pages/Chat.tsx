@@ -4,10 +4,11 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { ChatInput } from "@/components/ChatInput";
 import { VoiceInput } from "@/components/VoiceInput";
 import { SavePresetDialog } from "@/components/SavePresetDialog";
+import { EditSettingsDialog } from "@/components/EditSettingsDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { Message, AIModel, Conversation } from "@shared/schema";
-import { Bot, Loader2, Save } from "lucide-react";
+import { Message, AIModel, Conversation, ModelSettings } from "@shared/schema";
+import { Bot, Loader2, Save, Settings2 } from "lucide-react";
 import { sendMessage } from "@/lib/api";
 import { storage } from "@/lib/storage";
 
@@ -22,6 +23,7 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
   const [messages, setMessages] = useState<Message[]>(conversation?.messages || []);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [savePresetOpen, setSavePresetOpen] = useState(false);
+  const [editSettingsOpen, setEditSettingsOpen] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingText, setStreamingText] = useState("");
   const streamingTextRef = useRef<string>("");
@@ -129,6 +131,13 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
     handleSendMessage(text);
   };
 
+  const handleSaveSettings = async (settings: ModelSettings) => {
+    if (!conversation) return;
+    
+    await storage.updateConversation(conversation.id, { settings });
+    onConversationUpdate();
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
@@ -140,16 +149,29 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {conversation?.settings && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSavePresetOpen(true)}
-              data-testid="button-save-preset"
-            >
-              <Save className="h-4 w-4" />
-              Сохранить промпт
-            </Button>
+          {conversation && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditSettingsOpen(true)}
+                data-testid="button-edit-settings"
+              >
+                <Settings2 className="h-4 w-4" />
+                Настройки
+              </Button>
+              {conversation.settings && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSavePresetOpen(true)}
+                  data-testid="button-save-preset"
+                >
+                  <Save className="h-4 w-4" />
+                  Сохранить промпт
+                </Button>
+              )}
+            </>
           )}
           <ThemeToggle />
         </div>
@@ -211,13 +233,25 @@ export default function Chat({ conversation, selectedModel, onConversationUpdate
         onTranscript={handleVoiceTranscript}
       />
 
-      {conversation?.settings && (
-        <SavePresetDialog
-          open={savePresetOpen}
-          onOpenChange={setSavePresetOpen}
-          modelSettings={conversation.settings}
-          onSuccess={onConversationUpdate}
-        />
+      {conversation && (
+        <>
+          <EditSettingsDialog
+            open={editSettingsOpen}
+            onOpenChange={setEditSettingsOpen}
+            currentSettings={conversation.settings || {}}
+            currentModel={selectedModel}
+            onSave={handleSaveSettings}
+          />
+          
+          {conversation.settings && (
+            <SavePresetDialog
+              open={savePresetOpen}
+              onOpenChange={setSavePresetOpen}
+              modelSettings={conversation.settings}
+              onSuccess={onConversationUpdate}
+            />
+          )}
+        </>
       )}
     </div>
   );
