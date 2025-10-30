@@ -7,6 +7,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendNewUserNotification } from "./telegram";
 
 declare global {
   namespace Express {
@@ -68,6 +69,10 @@ export function setupAuth(app: Express) {
     const user = await storage.createUser({
       ...req.body,
       password: await hashPassword(req.body.password),
+    });
+
+    sendNewUserNotification(user.username).catch(err => {
+      console.error('[Auth] Failed to send Telegram notification:', err);
     });
 
     req.login(user, (err) => {
