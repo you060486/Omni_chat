@@ -34,6 +34,7 @@ The application features a dark theme by default, with a toggle for a light them
 - **Conversation History**: Stored locally in `localStorage`, grouped by date, with options for renaming, deleting, and switching chats. Model settings are saved per conversation.
 - **Configurable Model Parameters**: Users can adjust system prompt, temperature, max tokens, and Top P. o3-mini also offers a "reasoning effort" setting. Settings are saved per conversation.
 - **Preset Prompts**: Global preset prompts stored in PostgreSQL, manageable via an admin panel with CRUD operations through a protected API.
+- **Telegram Notifications**: Automatic notifications sent to a Telegram group when new users register, including username and timestamp in Moscow timezone.
 
 ### Feature Specifications
 - **Hybrid Storage**: Conversations are stored locally in `localStorage` for device isolation, while global preset prompts are stored in PostgreSQL for cross-device synchronization.
